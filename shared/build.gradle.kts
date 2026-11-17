@@ -28,6 +28,11 @@ plugins {
     id("org.jlleitschuh.gradle.ktlint")
 }
 
+// 工程改名后保持上游源码使用的资源包名，避免修改界面代码。
+compose.resources {
+    packageOfResClass = "zhihu.shared.generated.resources"
+}
+
 // Force material3 to 1.10.0-alpha05 across all configurations.
 // 根因：material-kolor 在 commonMain 用 strictly 约束强制 1.10.0-alpha05，
 // 但该约束仅作用于 KMP 元数据配置，不会传播到 jvmMain/androidMain 平台配置。
