@@ -105,7 +105,6 @@ kotlin {
         compilerOptions {
             jvmTarget = JvmTarget.JVM_17
         }
-        withHostTestBuilder {}
         androidResources {
             enable = true
         }

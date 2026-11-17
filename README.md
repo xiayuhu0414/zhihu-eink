@@ -29,7 +29,7 @@
 ./gradlew :app:assembleLiteDebug
 ```
 
-云端构建使用 `:app:assembleLiteRelease`，并以 `:app:testLiteDebugUnitTest` 验证现有单元测试。共享模块的测试使用 `:shared:testAndroidHostTest`。
+云端构建使用 `:app:assembleLiteRelease`，并以 `:app:testLiteDebugUnitTest` 验证现有单元测试。原共享测试源码予以保留；其中部分用例依赖原桌面 JVM 实现，尚未迁移到 Android 测试执行面，不计入当前 CI 验证范围。
 
 ## 来源与许可
 

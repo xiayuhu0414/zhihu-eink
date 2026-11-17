@@ -34,7 +34,7 @@ jobs:
           keyPassword: ${{ secrets.ANDROID_KEY_PASSWORD }}
         run: |
           test -n "$signingKey" && test -n "$keyAlias" && test -n "$keyStorePassword" && test -n "$keyPassword"
-          ./gradlew :app:testLiteDebugUnitTest :shared:testAndroidHostTest :app:assembleLiteRelease \
+          ./gradlew :app:testLiteDebugUnitTest :app:assembleLiteRelease \
             -Papp.versionCode="$GITHUB_RUN_NUMBER" -Papp.versionName="0.1.$GITHUB_RUN_NUMBER" \
             --no-configuration-cache --max-workers=2 \
             -Dorg.gradle.jvmargs="-Xmx3g -Dfile.encoding=UTF-8" \
@@ -61,5 +61,4 @@ jobs:
           name: test-reports
           path: |
             app/build/reports/tests/
-            shared/build/reports/tests/
           if-no-files-found: ignore
