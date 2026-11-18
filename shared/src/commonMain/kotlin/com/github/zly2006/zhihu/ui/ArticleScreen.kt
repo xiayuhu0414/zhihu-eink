@@ -103,6 +103,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LocalLifecycleOwner
+import androidx.lifecycle.repeatOnLifecycle
 import androidx.navigation.compose.currentBackStackEntryAsState
 import coil3.compose.AsyncImage
 import com.github.zly2006.zhihu.data.DataHolder
@@ -166,6 +169,7 @@ import com.github.zly2006.zhihu.viewmodel.sharedArticleAnswerSwitchState
 import com.materialkolor.ktx.harmonize
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import org.jetbrains.compose.resources.painterResource
 import zhihu.shared.generated.resources.Res
@@ -205,6 +209,7 @@ fun ArticleScreen(
 
     val scrollState = rememberScrollState()
     val coroutineScope = rememberCoroutineScope()
+    val offlineReadingLifecycleOwner = LocalLifecycleOwner.current
     val settings = rememberSettingsStore()
     val isTitleAutoHide by rememberObservedSetting(settings, "titleAutoHide") { getBoolean("titleAutoHide", false) }
     val autoHideArticleBottomBar by rememberObservedSetting(settings, "autoHideArticleBottomBar") {
@@ -418,12 +423,30 @@ fun ArticleScreen(
         viewModel.loadAigcFlagStatus(environment)
     }
 
+    LaunchedEffect(article.id, viewModel.content, useWebView) {
+        if (!(useWebView && isLegacyWebViewSupported) && viewModel.content.isNotBlank() && viewModel.rememberedScrollY > 0 && !viewModel.rememberedScrollYSync) {
+            snapshotFlow { scrollState.maxValue }.first { it > 0 && it != Int.MAX_VALUE }
+            scrollState.scrollTo(viewModel.rememberedScrollY)
+            viewModel.rememberedScrollYSync = true
+        }
+    }
+
     LaunchedEffect(article.type, article.id, viewModel.content) {
         if (viewModel.content.isNotBlank()) {
             viewModel.updateAigcReadProgress(scrollState.value, latestEffectiveScrollMaxValue)
             delay(15_000)
             viewModel.updateAigcReadProgress(scrollState.value, latestEffectiveScrollMaxValue)
             viewModel.syncAigcReadEventIfEligible(environment)
+        }
+    }
+    LaunchedEffect(article.type, article.id, viewModel.content, offlineReadingLifecycleOwner) {
+        if (viewModel.content.isNotBlank()) {
+            offlineReadingLifecycleOwner.lifecycle.repeatOnLifecycle(Lifecycle.State.RESUMED) {
+                while (true) {
+                    delay(1_000)
+                    viewModel.recordOfflineProgress(scrollState.value, latestEffectiveScrollMaxValue)
+                }
+            }
         }
     }
     LaunchedEffect(scrollState, viewModel.content) {

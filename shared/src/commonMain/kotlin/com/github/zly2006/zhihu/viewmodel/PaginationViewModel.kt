@@ -89,12 +89,13 @@ abstract class PaginationViewModel<T : Any>(
         protected set
     var allowGuestAccess = false
     protected var lastPaging: ZhihuPaging? by mutableStateOf(null)
-    open val isEnd: Boolean get() = lastPaging?.isEnd == true
+    private var offlineBoundary = false
+    open val isEnd: Boolean get() = lastPaging?.isEnd == true && !(offlineBoundary && com.github.zly2006.zhihu.offline.isOfflineNetworkAvailable())
     protected abstract val initialUrl: String
     private var currentJob: Job? = null
     protected open val shouldLogDecodeFailures: Boolean = true
 
-    protected open fun resolvePageUrl(): String = lastPaging?.next ?: initialUrl
+    protected open fun resolvePageUrl(): String = lastPaging?.next?.takeIf(String::isNotBlank) ?: initialUrl
 
     /**
      * Generally used fields to include in the API request.
@@ -109,11 +110,21 @@ abstract class PaginationViewModel<T : Any>(
         errorMessage = null
         debugData.clear()
         allData.clear()
-        lastPaging = null // 重置 lastPaging
+        resetPaginationCursor()
         loadMore(environment)
     }
 
     protected open fun handlePageMetadata(json: JsonObject) = Unit
+
+    protected fun acceptOfflinePaging(json: JsonObject) {
+        lastPaging = json["paging"]?.let { decodeJson(it) }
+        offlineBoundary = json["offline_cache_boundary"]?.jsonPrimitive?.content == "true"
+    }
+
+    internal open fun resetPaginationCursor() {
+        lastPaging = null
+        offlineBoundary = false
+    }
 
     protected open fun processResponse(environment: PaginationEnvironment, data: List<T>, rawData: JsonArray) {
         debugData.addAll(rawData) // 保存原始JSON
@@ -155,9 +166,7 @@ abstract class PaginationViewModel<T : Any>(
             val jsonArray = json["data"] as? JsonArray
                 ?: throw RuntimeException("您可能已被风控，请重新登录。", Exception("cause: no $.data"))
             processResponse(environment, decodePage(environment, jsonArray), jsonArray)
-            if ("paging" in json) {
-                lastPaging = decodeJson(json["paging"]!!)
-            }
+            acceptOfflinePaging(json)
             handlePageMetadata(json)
         } catch (e: kotlin.coroutines.cancellation.CancellationException) {
             throw e
@@ -323,6 +332,7 @@ suspend fun ZhihuApiEnvironment.addReadHistory(
     contentToken: String,
     contentTypeName: String,
 ) {
+    if (!com.github.zly2006.zhihu.offline.isOfflineNetworkAvailable()) return
     if (authenticatedCookies()["d_c0"] == null) return
     runCatching {
         post("https://www.zhihu.com/api/v4/read_history/add") {

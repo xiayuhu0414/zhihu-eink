@@ -231,6 +231,7 @@ class MainActivity : ComponentActivity() {
             .Builder(this)
             .crossfade(false)
             .components {
+                add(com.github.zly2006.zhihu.offline.OfflineImageInterceptor())
                 // add(SvgDecoder.Factory())
             }.memoryCache {
                 MemoryCache
@@ -264,6 +265,7 @@ class MainActivity : ComponentActivity() {
 
     override fun onStart() {
         super.onStart()
+        com.github.zly2006.zhihu.offline.OfflineRuntime.onForeground()
         continuousUsageReminderManager.onAppForeground()
     }
 

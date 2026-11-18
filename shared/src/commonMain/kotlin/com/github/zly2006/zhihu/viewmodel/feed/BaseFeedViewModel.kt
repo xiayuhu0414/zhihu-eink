@@ -67,7 +67,7 @@ abstract class BaseFeedViewModel : PaginationViewModel<Feed>(typeOf<Feed>()) {
         errorMessage = null
         debugData.clear()
         allData.clear()
-        lastPaging = null // 重置 lastPaging
+        resetPaginationCursor()
         isLoading = true
         try {
             fetchFeeds(environment)

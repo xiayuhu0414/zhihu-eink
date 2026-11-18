@@ -65,7 +65,7 @@ class AndroidHomeFeedViewModel :
 
     public override suspend fun fetchFeeds(environment: PaginationEnvironment) {
         try {
-            val response = environment.get(lastPaging?.next ?: initialUrl, profile = ZhihuRequestProfile.Mobile)
+            val response = environment.get(lastPaging?.next?.takeIf(String::isNotBlank) ?: initialUrl, profile = ZhihuRequestProfile.Mobile)
             if (response.status.isSuccess()) {
                 val jojo = response.jsonObject()
                 val data = jojo["data"]?.jsonArray ?: throw IllegalStateException("No data found in response")
@@ -110,11 +110,7 @@ class AndroidHomeFeedViewModel :
                     latestLoadedDisplayItems.value = filterResult.filteredItems
                 }
 
-                lastPaging = if ("paging" in jojo) {
-                    ZhihuJson.decodeJson(jojo["paging"]!!)
-                } else {
-                    null
-                }
+                acceptOfflinePaging(jojo)
             }
         } catch (e: Exception) {
             if (e !is CancellationException) {
@@ -132,7 +128,7 @@ class AndroidHomeFeedViewModel :
 
     override fun onUiContentClick(environment: ContentInteractionEnvironment, feed: Feed, item: FeedDisplayItem) {
         viewModelScope.launch(Dispatchers.Default) {
-            if (environment.authenticatedCookies()["d_c0"] != null) {
+            if (com.github.zly2006.zhihu.offline.isOfflineNetworkAvailable() && environment.authenticatedCookies()["d_c0"] != null) {
                 val payloadItem = when (val target = feed.target) {
                     is Feed.AnswerTarget -> listOf("answer", target.id.toString(), "read")
                     is Feed.ArticleTarget -> listOf("article", target.id.toString(), "read")
@@ -140,15 +136,19 @@ class AndroidHomeFeedViewModel :
                     else -> null
                 }
                 if (payloadItem != null) {
-                    environment.post("https://www.zhihu.com/lastread/touch") {
-                        header("x-requested-with", "fetch")
-                        setBody(
-                            MultiPartFormDataContent(
-                                formData {
-                                    append("items", ZhihuJson.json.encodeToString(listOf(payloadItem)))
-                                },
-                            ),
-                        )
+                    runCatching {
+                        environment.post("https://www.zhihu.com/lastread/touch") {
+                            header("x-requested-with", "fetch")
+                            setBody(
+                                MultiPartFormDataContent(
+                                    formData {
+                                        append("items", ZhihuJson.json.encodeToString(listOf(payloadItem)))
+                                    },
+                                ),
+                            )
+                        }
+                    }.onFailure { error ->
+                        if (error is kotlin.coroutines.cancellation.CancellationException) throw error
                     }
                 }
             }

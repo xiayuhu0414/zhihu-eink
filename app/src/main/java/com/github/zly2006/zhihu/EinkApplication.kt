@@ -33,6 +33,8 @@ class EinkApplication : Application() {
     @OptIn(ExperimentalComposeUiApi::class, InternalComposeUiApi::class)
     override fun onCreate() {
         super.onCreate()
+        com.github.zly2006.zhihu.offline.OfflineRuntime
+            .initialize(this)
         // 为本应用所有 Compose 窗口提供零时长，包括弹窗；不修改系统设置。
         WindowRecomposerPolicy.setFactory(
             WindowRecomposerFactory { view ->

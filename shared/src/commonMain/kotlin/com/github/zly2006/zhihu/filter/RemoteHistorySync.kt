@@ -61,6 +61,7 @@ class RemoteHistorySync(
     val importedRevision = revision.asStateFlow()
 
     fun start(scope: CoroutineScope, environment: PaginationEnvironment): Job? {
+        if (!com.github.zly2006.zhihu.offline.isOfflineNetworkAvailable()) return null
         if (job?.isActive == true) return job
         val now = Clock.System.now().toEpochMilliseconds()
         if (now - settings.getLong(LAST_ATTEMPT_KEY, 0L) < 60_000L) return null

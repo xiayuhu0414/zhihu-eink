@@ -91,6 +91,7 @@ const val ZHIHU_ANDROID_USER_AGENT = "com.zhihu.android/Futureve/10.61.0 Mozilla
 internal fun HttpClientConfig<*>.installZhihuMobileClientProfile() {
     install(UserAgent) { agent = ZHIHU_ANDROID_USER_AGENT }
     defaultRequest {
+        attributes.put(com.github.zly2006.zhihu.offline.OfflineProfile, "mobile")
         ZHIHU_MOBILE_HEADERS.forEach { (name, value) ->
             if (!headers.contains(name)) headers.append(name, value)
         }

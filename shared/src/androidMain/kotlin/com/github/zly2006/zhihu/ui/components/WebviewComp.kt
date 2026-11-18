@@ -560,6 +560,7 @@ fun WebView.setupUpWebviewClient(onPageFinished: ((String) -> Unit)? = null) {
     this.webViewClient = object : WebViewClientCompat() {
         override fun shouldInterceptRequest(view: WebView, request: WebResourceRequest): WebResourceResponse? {
             val url = request.url.toString()
+            com.github.zly2006.zhihu.offline.offlineWebResource(url)?.let { return it }
 
             // 记录所有资源请求
             Log.d("WebView-Resource", "Requesting: $url")

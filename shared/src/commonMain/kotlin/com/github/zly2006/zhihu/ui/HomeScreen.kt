@@ -363,7 +363,10 @@ fun HomeScreen(
             if (!account.login && settings.getBoolean("loginForRecommendation", true)) {
                 requestLoginNavigation()
             } else if (viewModel.displayItems.isEmpty()) {
-                val cachedItems = if (autoRefreshOnStartup) {
+                val cachedItems = if (autoRefreshOnStartup ||
+                    !com.github.zly2006.zhihu.offline
+                        .isOfflineNetworkAvailable()
+                ) {
                     emptyList()
                 } else {
                     withContext(Dispatchers.Default) {

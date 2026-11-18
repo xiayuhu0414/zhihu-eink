@@ -93,6 +93,7 @@ android {
     buildTypes {
         val gitHash = gitHash(rootProject.projectDir)
         debug {
+            applicationIdSuffix = providers.gradleProperty("app.debugApplicationIdSuffix").orNull
             buildConfigField("String", "GIT_HASH", "\"$gitHash\"")
             manifestPlaceholders["zhihuBuildType"] = "debug"
             manifestPlaceholders["zhihuGitHash"] = gitHash
@@ -108,6 +109,12 @@ android {
                 signingConfig = signingConfigs["env"]
             }
         }
+    }
+
+    if (providers.gradleProperty("app.offlineDeviceTests").orNull == "true") {
+        defaultConfig.testInstrumentationRunner = "com.github.zly2006.zhihu.offline.OfflineDeviceTestRunner"
+        sourceSets.getByName("androidTest").java.setSrcDirs(listOf("src/offlineDeviceTest/java"))
+        sourceSets.getByName("androidTest").kotlin.setSrcDirs(listOf("src/offlineDeviceTest/java"))
     }
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
@@ -234,6 +241,8 @@ dependencies {
     androidTestImplementation("androidx.compose.ui:ui-test-junit4")
 
     testImplementation("junit:junit:4.13.2")
+    testImplementation("io.ktor:ktor-client-mock:$ktor")
+    testImplementation("org.robolectric:robolectric:4.16.1")
     testImplementation("io.ktor:ktor-client-cio:$ktor")
     testImplementation("io.ktor:ktor-client-content-negotiation:$ktor")
     testImplementation("io.ktor:ktor-serialization-kotlinx-json:$ktor")
@@ -241,4 +250,9 @@ dependencies {
     androidTestImplementation("androidx.test.ext:junit:1.3.0")
     androidTestImplementation("androidx.test.espresso:espresso-core:3.7.0")
     androidTestImplementation("io.ktor:ktor-client-mock:$ktor")
+}
+
+tasks.withType<Test>().configureEach {
+    systemProperty("robolectric.dependency.repo.url", "https://repo.maven.apache.org/maven2")
+    maxHeapSize = "1g"
 }

@@ -291,6 +291,8 @@ fun SystemAndUpdateSettingsScreen(
                 }
             }
 
+            com.github.zly2006.zhihu.offline.OfflineCacheSettings(highlightedSetting)
+
             SettingItemGroup(title = "知乎水墨测试版更新") {
                 SettingItem(
                     title = { Text("更新来源") },

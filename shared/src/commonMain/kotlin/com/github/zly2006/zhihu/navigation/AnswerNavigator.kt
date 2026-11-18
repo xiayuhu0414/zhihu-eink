@@ -47,6 +47,7 @@ import kotlinx.serialization.json.jsonPrimitive
 data class AnswerNavigatorPage<T>(
     val items: List<T>,
     val nextUrl: String,
+    val offlineBoundary: Boolean = false,
 )
 
 fun <T> answerNavigatorPageFromJson(
@@ -61,6 +62,7 @@ fun <T> answerNavigatorPageFromJson(
             ?.get("next")
             ?.jsonPrimitive
             ?.content ?: "",
+        offlineBoundary = response["offline_cache_boundary"]?.jsonPrimitive?.content == "true",
     )
 }
 
@@ -260,6 +262,7 @@ class QuestionAnswerNavigator(
     private val knownOpenedIds = mutableSetOf<Long>()
     private var initialNextAnswersProcessed = false
     private var nextSourceExhausted = false
+    private var offlineResumeUrl: String? = null
     private val destinationsMutex = Mutex()
 
     override suspend fun remainingAnswersSnapshot(
@@ -313,6 +316,11 @@ class QuestionAnswerNavigator(
         currentArticleId: Long,
         minimumCount: Int,
     ) {
+        if (offlineResumeUrl != null && com.github.zly2006.zhihu.offline.isOfflineNetworkAvailable()) {
+            nextUrl = offlineResumeUrl!!
+            offlineResumeUrl = null
+            nextSourceExhausted = false
+        }
         if (destinations.size >= minimumCount || nextSourceExhausted) return
         val historyIds = answerHistory.map { it.article.id }.toSet()
         val fetchedUrls = mutableSetOf<String>()
@@ -343,7 +351,10 @@ class QuestionAnswerNavigator(
                         }
                     }
                 } ?: AnswerNavigatorPage(emptyList(), "")
-                fetchedNextUrl = page.nextUrl
+                if (page.offlineBoundary) {
+                    offlineResumeUrl = page.nextUrl
+                    fetchedNextUrl = ""
+                } else fetchedNextUrl = page.nextUrl
                 page.items.mapNotNull { feed -> feed.target?.navDestination as? Article }
             }
             val idsToLookup = candidates

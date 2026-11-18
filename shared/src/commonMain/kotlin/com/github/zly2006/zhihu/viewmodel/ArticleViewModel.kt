@@ -195,6 +195,27 @@ class ArticleViewModel(
     private var aigcMaxScrollRatio by mutableFloatStateOf(0f)
     private var aigcReadSyncStarted = false
     private val openedAtEpochSeconds = Clock.System.now().epochSeconds
+    private var offlinePositionLoaded = false
+    private val offlineAccount = com.github.zly2006.zhihu.offline.offlineAccountKey()
+    private var lastOfflinePosition = -1
+    private var offlineReadRecorded = false
+    private var offlineReadSeconds = 0
+    private var lastOfflineSavedAt = 0L
+
+    suspend fun recordOfflineProgress(position: Int, maxPosition: Int) {
+        if (!offlinePositionLoaded || isLoading || content.isBlank() || maxPosition == Int.MAX_VALUE) return
+        val now = Clock.System.now().toEpochMilliseconds()
+        val read = ++offlineReadSeconds >= 15 &&
+            (maxPosition == 0 || position >= maxPosition * 0.95)
+        if (position == lastOfflinePosition && (!read || offlineReadRecorded) && now - lastOfflineSavedAt < 30_000) return
+        lastOfflineSavedAt = now
+        lastOfflinePosition = position
+        offlineReadRecorded = offlineReadRecorded || read
+        com.github.zly2006.zhihu.offline.recordOfflineReading(
+            offlineAccount, if (article.type == ArticleType.Answer) "answer" else "article", article.id.toString(), position, read,
+        )
+    }
+
     private var aiSummaryJob: Job? = null
     private var exportSourceContent: DataHolder.Content? = null
 
@@ -261,6 +282,13 @@ class ArticleViewModel(
         if (httpClient == null) return
         isLoading = true
         viewModelScope.launch {
+            if (!offlinePositionLoaded) {
+                rememberedScrollY = com.github.zly2006.zhihu.offline.offlineReadingPosition(
+                    offlineAccount, if (article.type == ArticleType.Answer) "answer" else "article", article.id.toString(),
+                )
+                rememberedScrollYSync = false
+                offlinePositionLoaded = true
+            }
             withContext(Dispatchers.Default) {
                 try {
                     if (article.type == ArticleType.Answer) {
@@ -564,6 +592,7 @@ class ArticleViewModel(
     private val collectionOrder = mutableListOf<String>()
 
     fun loadCollections(environment: ZhihuApiEnvironment) {
+        if (!com.github.zly2006.zhihu.offline.isOfflineNetworkAvailable()) return
         if (httpClient == null) return
         viewModelScope.launch {
             withContext(Dispatchers.Default) {
@@ -673,6 +702,7 @@ class ArticleViewModel(
     fun isAigcFlagEvidenceReady(): Boolean = currentAigcReadEvidence().isEligibleForCredit()
 
     fun loadAigcFlagStatus(environment: AigcVoteEnvironment) {
+        if (!com.github.zly2006.zhihu.offline.isOfflineNetworkAvailable()) return
         aigcVoteAvailable = isAigcVoteSupported && environment.isAigcVoteEnabled()
         val voter = environment.aigcVoteVoter()
         aigcVoterName = voter?.name.orEmpty()

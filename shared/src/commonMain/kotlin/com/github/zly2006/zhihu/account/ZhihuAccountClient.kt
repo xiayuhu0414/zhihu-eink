@@ -22,6 +22,7 @@ import com.github.zly2006.zhihu.data.ZhihuJson
 import com.github.zly2006.zhihu.data.fetchVerifiedZhihuSession
 import com.github.zly2006.zhihu.data.installZhihuCommonClientConfig
 import com.github.zly2006.zhihu.data.installZhihuMobileClientProfile
+import com.github.zly2006.zhihu.offline.installOfflineContentCache
 import com.github.zly2006.zhihu.util.raiseForStatus
 import com.github.zly2006.zhihu.util.signZhihuFetchRequest
 import io.ktor.client.HttpClient
@@ -64,7 +65,7 @@ class ZhihuAccountClient internal constructor(
         get() = !closed && accountState.value.activeAccountId == accountId
     private val cookies = accountState.value.session.cookies
         .toMutableMap()
-    private val client = createAccountHttpClient(cookies, accountState.value.session.userAgent, accountStore.sessionLock) {
+    private val client = createAccountHttpClient(cookies, accountState.value.session.userAgent, accountStore.sessionLock, offlineAccountId = accountId ?: "guest") {
         if (isCurrent) {
             val current = load()
             // 以已保存会话为准；写入失败后的同值 Cookie 仍需重试保存。
@@ -247,6 +248,7 @@ class ZhihuAccountStore internal constructor(
         val activeAccountId = accountState.value.activeAccountId
         accountState.remove(id)
         if (id == activeAccountId) replaceClient()
+        com.github.zly2006.zhihu.offline.forgetOfflineAccount(id)
     }
 
     suspend fun login(cookies: MutableMap<String, String>): Boolean {
@@ -497,10 +499,12 @@ internal fun createAccountHttpClient(
     cookies: MutableMap<String, String>,
     userAgent: String,
     cookieLock: ReentrantLock = reentrantLock(),
+    offlineAccountId: String? = null,
     onCookieChanged: () -> Unit = {},
 ): HttpClient {
     val configure: io.ktor.client.HttpClientConfig<*>.() -> Unit = {
         installZhihuCommonClientConfig(cookies, userAgent, onCookieChanged, cookieLock = cookieLock)
+        if (offlineAccountId != null) installOfflineContentCache(offlineAccountId)
     }
     return accountHttpClientEngineForTesting?.let { HttpClient(it, configure) }
         ?: HttpClient(accountHttpClientEngineFactory, configure)

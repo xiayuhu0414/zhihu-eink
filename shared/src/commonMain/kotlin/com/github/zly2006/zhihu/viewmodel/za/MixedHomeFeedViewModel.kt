@@ -33,6 +33,15 @@ class MixedHomeFeedViewModel :
     HomeFeedInteractionViewModel {
     val android = AndroidHomeFeedViewModel()
     val web = HomeFeedViewModel()
+    override val isEnd: Boolean get() = android.isEnd && web.isEnd
+
+    internal override fun resetPaginationCursor() {
+        super.resetPaginationCursor()
+        android.resetPaginationCursor()
+        web.resetPaginationCursor()
+        android.allData.clear()
+        web.allData.clear()
+    }
     override val initialUrl: String
         get() = "https://api.zhihu.com/topstory/recommend"
 
@@ -46,8 +55,8 @@ class MixedHomeFeedViewModel :
     override suspend fun fetchFeeds(environment: PaginationEnvironment) {
         coroutineScope {
             listOf(
-                async { android.fetchFeeds(environment) },
-                async { web.fetchFeeds(environment) },
+                async { if (!android.isEnd) android.fetchFeeds(environment) },
+                async { if (!web.isEnd) web.fetchFeeds(environment) },
             ).joinAll()
         }
         isLoading = false

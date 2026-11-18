@@ -57,6 +57,7 @@ import com.github.zly2006.zhihu.filter.ContentOpenEventSupport
 import com.github.zly2006.zhihu.navigation.NavDestination
 import com.github.zly2006.zhihu.navigation.requestLoginNavigation
 import com.github.zly2006.zhihu.notification.NotificationSettingsStore
+import com.github.zly2006.zhihu.offline.installOfflineContentCache
 import com.github.zly2006.zhihu.platform.androidSettingsStore
 import com.github.zly2006.zhihu.platform.androidUserMessageSink
 import com.github.zly2006.zhihu.ui.AndroidArticleNavigationHandoff
@@ -142,6 +143,7 @@ open class SharedAndroidPaginationEnvironment(
 
     private fun createGuestHttpClient(profile: ZhihuRequestProfile): HttpClient {
         val configure: HttpClientConfig<*>.() -> Unit = {
+            installOfflineContentCache("guest")
             install(ContentNegotiation) { json(json) }
             if (profile == ZhihuRequestProfile.Mobile) {
                 installZhihuMobileClientProfile()

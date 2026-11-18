@@ -165,7 +165,7 @@ class HomeFeedViewModel :
     }
 
     public override suspend fun fetchFeeds(environment: PaginationEnvironment) {
-        markItemsAsTouched(environment)
+        viewModelScope.launch { markItemsAsTouched(environment) }
         super.fetchFeeds(environment)
     }
 
@@ -230,7 +230,7 @@ class HomeFeedViewModel :
      */
     override fun onUiContentClick(environment: ContentInteractionEnvironment, feed: Feed, item: FeedDisplayItem) {
         viewModelScope.launch(Dispatchers.Default) {
-            if (environment.authenticatedCookies()["d_c0"] != null) {
+            if (com.github.zly2006.zhihu.offline.isOfflineNetworkAvailable() && environment.authenticatedCookies()["d_c0"] != null) {
                 val payloadItem = when (val target = feed.target) {
                     is Feed.AnswerTarget -> listOf("answer", target.id.toString(), "read")
                     is Feed.ArticleTarget -> listOf("article", target.id.toString(), "read")
@@ -238,15 +238,19 @@ class HomeFeedViewModel :
                     else -> null
                 }
                 if (payloadItem != null) {
-                    environment.post("https://www.zhihu.com/lastread/touch") {
-                        header("x-requested-with", "fetch")
-                        setBody(
-                            MultiPartFormDataContent(
-                                formData {
-                                    append("items", ZhihuJson.json.encodeToString(listOf(payloadItem)))
-                                },
-                            ),
-                        )
+                    runCatching {
+                        environment.post("https://www.zhihu.com/lastread/touch") {
+                            header("x-requested-with", "fetch")
+                            setBody(
+                                MultiPartFormDataContent(
+                                    formData {
+                                        append("items", ZhihuJson.json.encodeToString(listOf(payloadItem)))
+                                    },
+                                ),
+                            )
+                        }
+                    }.onFailure { error ->
+                        if (error is kotlin.coroutines.cancellation.CancellationException) throw error
                     }
                 }
             }
@@ -258,6 +262,7 @@ class HomeFeedViewModel :
         environment: ContentInteractionEnvironment,
     ) {
         try {
+            if (!com.github.zly2006.zhihu.offline.isOfflineNetworkAvailable()) return
             if (environment.authenticatedCookies()["d_c0"] == null) return
             val currentTouchItems = displayItems
                 .asSequence()
