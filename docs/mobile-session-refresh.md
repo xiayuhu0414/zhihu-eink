@@ -1,5 +1,7 @@
 # 移动端登录续期
 
+> 本文保留上游实现和历史验证背景；其中的取证、桌面诊断及测试覆盖不代表本仓库已重新执行。当前构建与测试范围见 [Android Lite 工程说明](kmp-android-variants.md)。
+
 2026-11-04 使用真实过期会话验证：旧 Cookie 与 Bearer 返回 `401 / code=100 / ERR_LOGIN_TICKET_EXPIRED`。已保存的移动端 refresh token 可通过 `POST https://api.zhihu.com/api/account/prod/sign_in`、`grant_type=refresh_token` 换取新令牌和 Cookie，随后 Web 与 Android 身份校验均为原账号。旧 Web 两步刷新在这个过期样本上不可用。
 
 ## 请求与响应

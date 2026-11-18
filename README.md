@@ -33,8 +33,14 @@
 
 云端构建使用 `:app:assembleLiteRelease`，并以 `:app:testLiteDebugUnitTest` 验证现有单元测试。原共享测试源码予以保留；其中部分用例依赖原桌面 JVM 实现，尚未迁移到 Android 测试执行面，不计入当前 CI 验证范围。
 
+## 工程维护
+
+本仓库只保留 Android Lite 工程、测试和相关维护文档。已清理上游桌面打包、浏览器扩展、商店宣传素材、独立 Rust 签名及 APK 重压缩工具、静态表情副本和失效的公式基准生成器；当前业务功能保持不变。
+
+源码模块、构建命令和测试边界见 [Android Lite 工程说明](docs/kmp-android-variants.md)，文档入口见 [维护文档](docs/README.md)。仓库内容精简不代表 APK 体积会同比缩小。
+
 ## 来源与许可
 
 初始化来源：本地 `/Users/yhx/project/zhihu-plus-plus` 的提交 `04a4e4b8ade8c2d2d7d5442d46a97f586c02d7f4`。
 
-上游项目由 zly2006 及贡献者开发。本仓库保留原有版权声明，沿用 [GNU AGPL-3.0](LICENSE)。原项目说明见 [docs/upstream-readme.md](docs/upstream-readme.md)。
+上游项目由 zly2006 及贡献者开发。本仓库保留原有版权声明，沿用 [GNU AGPL-3.0](LICENSE)。上游完整说明可在 [Zhihu++ 仓库](https://github.com/zly2006/zhihu-plus-plus) 查阅。
