@@ -2,7 +2,7 @@
 
 面向 Android 水墨屏设备的知乎客户端项目基础，基于 [Zhihu++](https://github.com/zly2006/zhihu-plus-plus) 的 Lite 版本建立。
 
-**当前仅完成工程初始化与云端构建配置，尚未进行水墨屏功能、主题或交互改造。应用功能保持上游 Lite 行为。**
+**已建立 Android Lite 工程基础、固定签名云端构建及本仓库在线更新。尚未进行墨水屏主题、翻页或刷新适配；其他业务功能沿用上游 Lite。**
 
 ## 工程范围
 
@@ -11,13 +11,15 @@
 - 保留 `app`、`shared`、`shared-local-db`，继续使用 Kotlin Multiplatform 组织 Android 共享源码。
 - 应用名称：知乎水墨；独立包名：`com.github.xiayuhu0414.zhihu.eink`，可与上游并存。
 - 最低 Android 8.1（API 27）。
-- 当前上游业务行为（含检查更新来源）保持不变；后续水墨屏改造另行实施。
+- 更新来源已切换为本仓库 Releases；其他业务功能保持上游行为，后续墨水屏改造另行实施。
 
 ## 云端构建和下载
 
-推送到 `main` 或在 [Actions](https://github.com/xiayuhu0414/zhihu-eink/actions) 手动运行“构建 Android Lite”即可构建 APK。
+推送到 `main` 或在 [Actions](https://github.com/xiayuhu0414/zhihu-eink/actions) 手动运行“构建并发布 Android Lite”，检查和构建成功后自动发布测试 APK。
 
-成功后在该次运行的 Artifacts 下载 `zhihu-eink-lite`，解压得到签名的 Release APK、SHA-256 校验文件和混淆映射。APK 名称与版本号包含云端构建序号，可覆盖升级同一签名的安装。
+首次从 [Releases](https://github.com/xiayuhu0414/zhihu-eink/releases) 下载签名 APK 安装，后续可通过“设置 → 系统与更新 → 检查更新”升级。发布包含 APK、SHA-256、构建信息和对应源码归档；Actions 的 `zhihu-eink-lite` artifact 额外保留混淆映射。版本及构建号随云端运行递增，沿用固定签名，可保留数据覆盖升级。
+
+具体协议、发布流程和验证边界见 [在线更新说明](docs/online-updates.md)。
 
 签名使用仓库 Actions Secrets：`ANDROID_SIGNING_KEY`（Base64 JKS）、`ANDROID_KEY_ALIAS`、`ANDROID_KEYSTORE_PASSWORD`、`ANDROID_KEY_PASSWORD`。私钥不提交到源码；应妥善保留备份，丢失后无法对原安装覆盖升级。
 

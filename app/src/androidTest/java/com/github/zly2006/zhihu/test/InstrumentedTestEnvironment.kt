@@ -56,6 +56,7 @@ object InstrumentedTestEnvironment {
             .edit()
             .clear()
             .putBoolean("allowTelemetry", false)
+            .putBoolean(com.github.zly2006.zhihu.updater.EINK_AUTO_UPDATE_KEY, currentDataMode != DataMode.MOCK)
             .putLong("last_main_launch_timestamp", System.currentTimeMillis())
             .commit()
 

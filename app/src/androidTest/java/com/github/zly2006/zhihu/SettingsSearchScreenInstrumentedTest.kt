@@ -105,13 +105,13 @@ class SettingsSearchScreenInstrumentedTest {
 
         composeRule
             .onNodeWithTag(SETTINGS_SEARCH_INPUT_TAG)
-            .performTextInput("GitHub Token")
+            .performTextInput("自动检查更新")
         composeRule
-            .onNodeWithTag("settingsSearch.result.system.githubToken")
+            .onNodeWithTag("settingsSearch.result.system.autoCheckUpdates")
             .assertIsDisplayed()
             .performClick()
         assertEquals(
-            listOf(Account.SystemAndUpdateSettings(setting = "githubToken")),
+            listOf(Account.SystemAndUpdateSettings(setting = com.github.zly2006.zhihu.updater.EINK_AUTO_UPDATE_KEY)),
             navigator.destinations,
         )
 
@@ -131,7 +131,7 @@ class SettingsSearchScreenInstrumentedTest {
 
         assertEquals(
             listOf(
-                Account.SystemAndUpdateSettings(setting = "githubToken"),
+                Account.SystemAndUpdateSettings(setting = com.github.zly2006.zhihu.updater.EINK_AUTO_UPDATE_KEY),
                 Notification.NotificationSettings(setting = "systemNotifications"),
             ),
             navigator.destinations,

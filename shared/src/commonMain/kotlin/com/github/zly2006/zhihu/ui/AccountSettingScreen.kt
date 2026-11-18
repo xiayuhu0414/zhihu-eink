@@ -534,7 +534,7 @@ fun AccountSettingScreen(
             LaunchedEffect(updateState) {
                 if (updateState is SystemUpdateState.UpdateAvailable) {
                     val state = updateState as SystemUpdateState.UpdateAvailable
-                    val versionType = if (state.isNightly) "Nightly版本" else "正式版本"
+                    val versionType = if (state.isNightly) "测试版本" else "正式版本"
                     userMessages.showShortMessage("发现新$versionType ${state.version}")
                 }
                 if (updateState is SystemUpdateState.Error) {

@@ -34,8 +34,6 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.ArrowOutward
-import androidx.compose.material.icons.filled.Visibility
-import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.Button
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -66,12 +64,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.testTag
-import androidx.compose.ui.text.LinkAnnotation
-import androidx.compose.ui.text.buildAnnotatedString
-import androidx.compose.ui.text.input.PasswordVisualTransformation
-import androidx.compose.ui.text.input.VisualTransformation
-import androidx.compose.ui.text.withLink
-import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import com.github.zly2006.zhihu.data.AIGC_MARKING_ENABLED_PREFERENCE_KEY
 import com.github.zly2006.zhihu.navigation.LocalNavigator
@@ -83,6 +75,8 @@ import com.github.zly2006.zhihu.ui.components.SettingItemGroup
 import com.github.zly2006.zhihu.ui.components.SettingItemWithSwitch
 import com.github.zly2006.zhihu.ui.components.pageTurnViewportWithGuide
 import com.github.zly2006.zhihu.ui.components.rememberPageTurnTarget
+import com.github.zly2006.zhihu.updater.EINK_AUTO_UPDATE_KEY
+import com.github.zly2006.zhihu.updater.EINK_RELEASES_URL
 import com.github.zly2006.zhihu.util.ContinuousUsageReminderPolicy
 import kotlinx.coroutines.launch
 import org.jetbrains.compose.resources.painterResource
@@ -98,7 +92,7 @@ const val SYSTEM_SETTINGS_AIGC_MARKING_TAG = "system_settings_aigc_marking"
 /**
  * 系统、更新和外部服务设置页。
  *
- * 页面展示更新横幅、下载/安装/跳过版本操作、GitHub Token、Nightly、遥测、防沉迷提醒和社区链接。
+ * 页面展示本项目测试版更新、下载/安装/跳过版本操作、自动检查开关、遥测、防沉迷提醒和社区链接。
  * 更新相关状态与动作由细粒度平台能力提供，防沉迷间隔写入 [CONTINUOUS_USAGE_REMINDER_INTERVAL_MINUTES_KEY]，
  * 改动时要同时考虑 Android 更新管理器和 Desktop 运行时。
  */
@@ -205,32 +199,14 @@ fun SystemAndUpdateSettingsScreen(
                                     )
                                     SelectionContainer {
                                         Text(
-                                            buildAnnotatedString {
-                                                val prRegex = Regex("https://github.com/zly2006/zhihu-plus-plus/pull/(\\d+)")
-                                                var lastIndex = 0
-                                                prRegex.findAll(releaseNotes!!).forEach { matchResult ->
-                                                    append(releaseNotes!!.substring(lastIndex, matchResult.range.first))
-                                                    val prNumber = matchResult.groupValues[1]
-                                                    withLink(LinkAnnotation.Url("https://github.com/zly2006/zhihu-plus-plus/pull/$prNumber")) {
-                                                        withStyle(
-                                                            MaterialTheme.typography.bodyMedium
-                                                                .copy(color = MaterialTheme.colorScheme.primary)
-                                                                .toSpanStyle(),
-                                                        ) {
-                                                            append("#$prNumber")
-                                                        }
-                                                    }
-                                                    lastIndex = matchResult.range.last + 1
-                                                }
-                                                append(releaseNotes!!.substring(lastIndex))
-                                            },
+                                            releaseNotes.orEmpty(),
                                             style = MaterialTheme.typography.bodyMedium,
                                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                                         )
                                     }
                                     Spacer(modifier = Modifier.height(12.dp))
                                     TextButton(
-                                        onClick = { openExternalUrl("https://github.com/zly2006/zhihu-plus-plus/releases") },
+                                        onClick = { openExternalUrl(EINK_RELEASES_URL) },
                                         modifier = Modifier.align(Alignment.End),
                                     ) {
                                         Text("查看完整更新日志")
@@ -278,7 +254,7 @@ fun SystemAndUpdateSettingsScreen(
                                     }
                                 },
                                 modifier = Modifier.weight(1f),
-                                enabled = updateState !is SystemUpdateState.Downloaded || isApkUpdateInstallSupported,
+                                enabled = updateState is SystemUpdateState.UpdateAvailable,
                             ) {
                                 Text("跳过此版本", Modifier.padding(0.dp, 4.dp))
                             }
@@ -294,6 +270,7 @@ fun SystemAndUpdateSettingsScreen(
                                     }
                                 },
                                 modifier = Modifier.weight(1f),
+                                enabled = updateState is SystemUpdateState.UpdateAvailable || updateState is SystemUpdateState.Downloaded,
                             ) {
                                 Text(
                                     when (updateState) {
@@ -314,42 +291,27 @@ fun SystemAndUpdateSettingsScreen(
                 }
             }
 
-            // GitHub Token。
-            var githubToken by remember { mutableStateOf(settings.getString("githubToken", "")) }
-            var showGithubToken by remember { mutableStateOf(false) }
+            SettingItemGroup(title = "知乎水墨测试版更新") {
+                SettingItem(
+                    title = { Text("更新来源") },
+                    description = { Text("本项目 GitHub Releases；下载并校验后由你确认安装。") },
+                    onClick = { openExternalUrl(EINK_RELEASES_URL) },
+                )
+                var autoCheckUpdates by remember { mutableStateOf(settings.getBoolean(EINK_AUTO_UPDATE_KEY, true)) }
+                SettingItemWithSwitch(
+                    title = { Text("自动检查更新") },
+                    description = { Text("启动时检查本项目测试版，每 24 小时最多一次；不会自动下载或安装") },
+                    checked = autoCheckUpdates,
+                    onCheckedChange = {
+                        autoCheckUpdates = it
+                        settings.putBoolean(EINK_AUTO_UPDATE_KEY, it)
+                    },
+                    settingKey = EINK_AUTO_UPDATE_KEY,
+                    highlightedKey = highlightedSetting,
+                )
+            }
 
             SettingItemGroup {
-                SettingItem(
-                    title = { Text("GitHub Token") },
-                    description = {
-                        Text(
-                            "用于访问 GitHub API 时解除限速，提高更新检查的稳定性。留空则使用匿名访问，检查更新可能会失败。",
-                        )
-                    },
-                    settingKey = "githubToken",
-                    highlightedKey = highlightedSetting,
-                    bottomAction = {
-                        OutlinedTextField(
-                            value = githubToken,
-                            onValueChange = {
-                                githubToken = it
-                                settings.putString("githubToken", it)
-                            },
-                            visualTransformation = if (showGithubToken) VisualTransformation.None else PasswordVisualTransformation(),
-                            trailingIcon = {
-                                IconButton(onClick = { showGithubToken = !showGithubToken }) {
-                                    Icon(
-                                        imageVector = if (showGithubToken) Icons.Default.Visibility else Icons.Default.VisibilityOff,
-                                        contentDescription = null,
-                                    )
-                                }
-                            },
-                            modifier = Modifier.fillMaxWidth().padding(top = 16.dp),
-                            singleLine = true,
-                        )
-                    },
-                )
-
                 if (platformName == "macOS") {
                     var quitOnWindowClose by remember {
                         mutableStateOf(settings.getBoolean(MACOS_QUIT_ON_WINDOW_CLOSE_PREFERENCE_KEY, false))
@@ -366,19 +328,6 @@ fun SystemAndUpdateSettingsScreen(
                         highlightedKey = highlightedSetting,
                     )
                 }
-
-                var checkNightlyUpdates by remember { mutableStateOf(settings.getBoolean("checkNightlyUpdates", false)) }
-                SettingItemWithSwitch(
-                    title = { Text("检查 Nightly 版本更新") },
-                    description = { Text("检查每日构建版本 (可能不稳定)") },
-                    checked = checkNightlyUpdates,
-                    onCheckedChange = {
-                        checkNightlyUpdates = it
-                        settings.putBoolean("checkNightlyUpdates", it)
-                    },
-                    settingKey = "checkNightlyUpdates",
-                    highlightedKey = highlightedSetting,
-                )
 
                 var allowTelemetry by remember { mutableStateOf(settings.getBoolean("allowTelemetry", true)) }
                 SettingItemWithSwitch(

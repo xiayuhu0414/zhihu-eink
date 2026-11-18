@@ -93,9 +93,7 @@ import com.github.zly2006.zhihu.viewmodel.filter.androidKeywordSemanticMatcher
 import com.github.zly2006.zhihu.viewmodel.filter.androidKeywordWeightExtractor
 import com.github.zly2006.zhihu.viewmodel.filter.getContentFilterDatabase
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.DelicateCoroutinesApi
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.launch
 import java.util.concurrent.TimeUnit
 
@@ -256,8 +254,7 @@ class MainActivity : ComponentActivity() {
 
         // 自动检查更新（在应用启动时）
         if (savedInstanceState == null) {
-            @OptIn(DelicateCoroutinesApi::class)
-            GlobalScope.launch {
+            lifecycleScope.launch {
                 try {
                     UpdateManager.autoCheckForUpdate(this@MainActivity)
                 } catch (e: Exception) {
