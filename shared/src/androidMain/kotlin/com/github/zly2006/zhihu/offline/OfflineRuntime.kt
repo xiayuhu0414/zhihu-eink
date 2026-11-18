@@ -2,13 +2,7 @@ package com.github.zly2006.zhihu.offline
 
 import android.content.Context
 import android.net.ConnectivityManager
-import android.net.NetworkCapabilities
-import androidx.work.BackoffPolicy
-import androidx.work.Constraints
 import androidx.work.CoroutineWorker
-import androidx.work.ExistingPeriodicWorkPolicy
-import androidx.work.NetworkType
-import androidx.work.PeriodicWorkRequestBuilder
 import androidx.work.WorkManager
 import androidx.work.WorkerParameters
 import com.github.zly2006.zhihu.account.ZhihuRequestProfile
@@ -61,18 +55,19 @@ import kotlinx.serialization.json.intOrNull
 import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.put
 import org.jsoup.Jsoup
-import java.util.concurrent.TimeUnit
 
 object OfflineRuntime {
     private var applicationContext: Context? = null
     private val stores = mutableMapOf<String, OfflineDatabase>()
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private val runLock = Mutex()
-    private var foregroundJob: Job? = null
+
+    @Volatile private var foregroundJob: Job? = null
 
     @Volatile private var runningJob: Job? = null
-    private var lastForeground = 0L
-    private var networkCallback: ConnectivityManager.NetworkCallback? = null
+    private val startupLock = Any()
+    private var startupRequested = false
+    private var startupChecked = false
     val status = MutableStateFlow("尚未准备内容")
     private val resourceClient by lazy {
         HttpClient {
@@ -92,15 +87,14 @@ object OfflineRuntime {
         if (applicationContext != null) return
         applicationContext = context.applicationContext
         scope.launch {
-            reschedule()
-            val manager = context.getSystemService(ConnectivityManager::class.java)
-            networkCallback = object : ConnectivityManager.NetworkCallback() {
-                override fun onCapabilitiesChanged(network: android.net.Network, capabilities: NetworkCapabilities) {
-                    if (capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED)) onForeground()
-                }
-            }.also { manager.registerDefaultNetworkCallback(it) }
-            androidZhihuAccountStore(context).accountsState.map { it.activeAccountId to it.accounts.map { account -> account.id }.toSet() }.distinctUntilChanged().collect { (_, accountIds) ->
-                foregroundJob?.cancelAndJoin()
+            // Migration: remove the old hourly schedule. Opening an Activity is the only automatic trigger.
+            WorkManager.getInstance(context).cancelUniqueWork("offline-content")
+            var firstSnapshot = true
+            var previousAccount: String? = null
+            androidZhihuAccountStore(context).accountsState.map { it.activeAccountId to it.accounts.map { account -> account.id }.toSet() }.distinctUntilChanged().collect { (activeAccount, accountIds) ->
+                if (!firstSnapshot && activeAccount != previousAccount) foregroundJob?.cancelAndJoin()
+                firstSnapshot = false
+                previousAccount = activeAccount
                 // Remove partitions of accounts deleted through any account-management path.
                 val valid = accountIds + "guest"
                 synchronized(stores) {
@@ -117,7 +111,7 @@ object OfflineRuntime {
                     .listFiles()
                     ?.filter { it.isDirectory && it.name !in validDirectories }
                     ?.forEach { it.deleteRecursively() }
-                onForeground(force = true)
+                checkStartupWhenReady()
             }
         }
     }
@@ -144,50 +138,49 @@ object OfflineRuntime {
         return !options().wifiOnly || !manager.isActiveNetworkMetered
     }
 
-    fun onForeground(force: Boolean = false) {
-        if (applicationContext == null) return
+    /** Called by the foreground Activity; repeated resumes do not start another pass in this process. */
+    fun onApplicationOpened() {
+        synchronized(startupLock) { startupRequested = true }
+        checkStartupWhenReady()
+    }
+
+    private fun checkStartupWhenReady() {
+        val context = applicationContext ?: return
+        val ready = !androidSettingsStore(context).getBoolean("loginForRecommendation", true) ||
+            androidZhihuAccountStore(context).accountsState.value.activeAccountId != null
+        val start = synchronized(startupLock) {
+            if (!startupRequested || startupChecked || !ready) {
+                false
+            } else {
+                startupChecked = true
+                true
+            }
+        }
+        if (start) requestPreparation()
+    }
+
+    /** Explicit manual action; it still checks inventory before making any network requests. */
+    fun requestPreparation() {
+        if (applicationContext == null || foregroundJob?.isActive == true) return
         if (!allowed()) {
             status.value = when {
                 !options().enabled -> "自动准备已暂停，已有内容可继续使用"
-                !connected() -> "等待联网，已有内容可继续使用"
-                else -> "等待 Wi-Fi，已有内容可继续使用"
+                !connected() -> "当前无网络，下次打开或点击立即补充时继续"
+                else -> "当前不符合 Wi-Fi 设置，下次打开或点击立即补充时继续"
             }
             return
         }
-        val now = System.currentTimeMillis()
-        if ((!force && now - lastForeground < 15 * 60_000) || foregroundJob?.isActive == true) return
-        lastForeground = now
-        foregroundJob = scope.launch { runCatching { fill() } }
+        synchronized(startupLock) {
+            if (foregroundJob?.isActive == true) return
+            status.value = "正在检查缓存并清理已读内容"
+            foregroundJob = scope.launch { runCatching { fill() } }
+        }
     }
 
-    fun pauseAndReschedule() {
-        val previous = foregroundJob
+    fun onSettingsChanged() {
         runningJob?.cancel()
-        reschedule()
-        scope.launch {
-            previous?.cancelAndJoin()
-            onForeground(force = true)
-        }
-    }
-
-    fun reschedule() {
-        val context = applicationContext ?: return
-        val manager = WorkManager.getInstance(context)
-        if (!options().enabled) {
-            manager.cancelUniqueWork("offline-content")
-            status.value = "自动准备已暂停，已有内容可继续使用"
-            return
-        }
-        val request = PeriodicWorkRequestBuilder<OfflineContentWorker>(1, TimeUnit.HOURS)
-            .setConstraints(
-                Constraints
-                    .Builder()
-                    .setRequiredNetworkType(if (options().wifiOnly) NetworkType.UNMETERED else NetworkType.CONNECTED)
-                    .setRequiresStorageNotLow(true)
-                    .build(),
-            ).setBackoffCriteria(BackoffPolicy.EXPONENTIAL, 1, TimeUnit.MINUTES)
-            .build()
-        manager.enqueueUniquePeriodicWork("offline-content", ExistingPeriodicWorkPolicy.UPDATE, request)
+        foregroundJob?.cancel()
+        status.value = if (options().enabled) "设置已保存，下次打开时检查；也可点击立即补充" else "自动准备已暂停，已有内容可继续使用"
     }
 
     internal fun backend(id: String): OfflineBackend = object : OfflineBackend {
@@ -231,10 +224,11 @@ object OfflineRuntime {
             val deadline = System.currentTimeMillis() + 8 * 60_000
             db.prepareTargets(options)
             db.markReadQuestions()
-            if (db.unreadDetails() > 0) db.clean(options)
-            status.value = "正在准备推荐内容"
+            db.clean(options)
+            val needCandidates = db.queueMissingPreparation(options)
+            status.value = "正在按数量补齐缓存"
             try {
-                seed(env, db, options, deadline)
+                if (needCandidates) seed(env, db, options, deadline)
             } catch (cancelled: CancellationException) {
                 throw cancelled
             } catch (error: Exception) {
@@ -248,7 +242,12 @@ object OfflineRuntime {
                     status.value = "缓存空间已满，暂停补充"
                     break
                 }
-                val task = db.task(System.currentTimeMillis()) ?: break
+                val task = db.task(System.currentTimeMillis())
+                if (task == null) {
+                    if (db.missingResources(1).isEmpty()) break
+                    downloadImages(db, id, 20, deadline)
+                    continue
+                }
                 try {
                     executeTask(env, db, task, options)
                     completed++
@@ -267,13 +266,11 @@ object OfflineRuntime {
                 delay(350)
             }
             if (accountId() != id) return@withLock
-            downloadImages(db, id, 40, deadline)
-            if (completed > 0 && accountId() == id && connected()) db.clean(options)
             val stats = db.stats(includePendingImages = true)
             status.value = if (stats.bytes >= options.capacityMb * 1024L * 1024L) {
                 "缓存空间已满，暂停补充"
             } else {
-                "问题 ${stats.questions} · 回答 ${stats.answers} · 文章 ${stats.articles} · 图片 ${stats.images}（待补 ${stats.pendingImages}） · 待处理 ${stats.pending} · ${stats.bytes / 1024 / 1024} MB"
+                "缓存检查完成 · 问题 ${stats.questions} · 回答 ${stats.answers} · 文章 ${stats.articles} · 图片 ${stats.images}（待补 ${stats.pendingImages}） · 待处理 ${stats.pending} · ${stats.bytes / 1024 / 1024} MB"
             }
         } catch (error: Exception) {
             if (error !is CancellationException) {
@@ -318,6 +315,7 @@ object OfflineRuntime {
             else -> listOf(ZhihuRequestProfile.Web)
         }
         for (profile in profiles) {
+            if (db.selected("question").size >= options.questions && db.selected("article").size >= options.articles) break
             var next: String? = "https://api.zhihu.com/topstory/recommend"
             val seen = mutableSetOf<String>()
             for (page in 0 until 10) {
@@ -327,9 +325,6 @@ object OfflineRuntime {
                 if (db.selected("question").size >= options.questions && db.selected("article").size >= options.articles) break
             }
         }
-        // Refresh selected groups, but task bodies skip recently updated resources.
-        db.selected("question").forEach { db.enqueue("question", it, "", 20) }
-        db.selected("article").forEach { db.enqueue("article", it, "", 18) }
     }
 
     private suspend fun executeTask(env: SharedAndroidPaginationEnvironment, db: OfflineDatabase, task: OfflineTask, options: OfflineOptions) {
@@ -353,7 +348,12 @@ object OfflineRuntime {
         when (task.kind) {
             "question" -> {
                 val detail = "https://www.zhihu.com/api/v4/questions/${task.id}"
-                if (!db.responseFresh(detail, "web", 6 * 3_600_000L)) fetch(env, detail, zhihuContentDetailInclude(Question(task.id.toLong())))
+                if (db.questionPrepared(task.id, options)) {
+                    db.finish(task)
+                    db.enqueueMissingComments("question:${task.id}", options)
+                    return
+                }
+                if (!db.hasDetail("question:${task.id}")) fetch(env, detail, zhihuContentDetailInclude(Question(task.id.toLong())))
                 val url = state?.get("url")?.jsonPrimitive?.content ?: zhihuQuestionFeedsUrl(task.id, 20, "default")
                 val count = state?.get("count")?.jsonPrimitive?.intOrNull ?: 0
                 val seen = (state?.get("seen") as? JsonArray).orEmpty().map { it.jsonPrimitive.content }.toMutableSet()
@@ -378,7 +378,8 @@ object OfflineRuntime {
                 } else {
                     db.finish(task)
                     db.meta("questionPreparedIds.${task.id}", JsonArray(seen.map(::JsonPrimitive)).toString())
-                    if (options.comments > 0) db.enqueue("comments", "question:${task.id}", "", 2)
+                    db.meta("questionAnswersExhausted.${task.id}", (next == null || pageAnswers.isEmpty()).toString())
+                    db.enqueueMissingComments("question:${task.id}", options)
                 }
             }
 
@@ -386,12 +387,16 @@ object OfflineRuntime {
                 val kind = if (task.kind == "discoverAnswer") "answer" else task.kind
                 val url = "https://www.zhihu.com/api/v4/${kind}s/${task.id}"
                 val destination = Article(id = task.id.toLong(), type = if (kind == "answer") ArticleType.Answer else ArticleType.Article)
-                if (!db.responseFresh(url, "web", 24 * 3_600_000L)) fetch(env, url, zhihuContentDetailInclude(destination))
+                if (!db.hasDetail("$kind:${task.id}")) fetch(env, url, zhihuContentDetailInclude(destination))
                 db.finish(task)
-                if (options.comments > 0) db.enqueue("comments", "$kind:${task.id}", "", 2)
+                db.enqueueMissingComments("$kind:${task.id}", options)
             }
 
             "comments", "replies" -> {
+                if (task.kind == "comments" && state == null && !db.needsComments(task.id, options)) {
+                    db.finish(task)
+                    return
+                }
                 val parts = task.id.split(':')
                 val initial = if (task.kind == "comments") {
                     "https://www.zhihu.com/api/v4/comment_v5/${parts[0]}s/${parts[1]}/root_comment?order_by=score"
@@ -427,6 +432,10 @@ object OfflineRuntime {
                     )
                 } else {
                     db.finish(task)
+                    if (task.kind == "comments") {
+                        db.meta("commentsPrepared.${task.id}", options.comments.toString())
+                        db.meta("repliesPrepared.${task.id}", options.replies.toString())
+                    }
                 }
             }
 
@@ -452,6 +461,7 @@ object OfflineRuntime {
                     channel.cancel(null)
                     if (bytes.size <= 15 * 1024 * 1024 && accountId() == account) {
                         db.saveResource(url, bytes, type, options().capacityMb * 1024L * 1024L)
+                        if (db.resource(url) == null) db.resourceFailed(url)
                     } else {
                         db.resourceFailed(url)
                     }
@@ -498,15 +508,8 @@ class OfflineContentWorker(
     context: Context,
     parameters: WorkerParameters,
 ) : CoroutineWorker(context, parameters) {
-    override suspend fun doWork(): Result = try {
-        OfflineRuntime.initialize(applicationContext)
-        OfflineRuntime.fill()
-        Result.success()
-    } catch (cancelled: CancellationException) {
-        throw cancelled
-    } catch (_: Exception) {
-        Result.retry()
-    }
+    // Kept for already-persisted work from older builds. It must never start a download pass.
+    override suspend fun doWork(): Result = Result.success()
 }
 
 internal fun extractImages(body: String): Set<String> {

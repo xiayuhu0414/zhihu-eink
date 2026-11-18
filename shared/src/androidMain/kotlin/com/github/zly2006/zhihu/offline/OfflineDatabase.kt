@@ -13,6 +13,7 @@ import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.contentOrNull
+import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.put
 import java.io.File
@@ -70,6 +71,11 @@ class OfflineDatabase(
     }
 
     override fun onUpgrade(db: SQLiteDatabase, oldVersion: Int, newVersion: Int) = Unit
+
+    override fun onOpen(db: SQLiteDatabase) {
+        super.onOpen(db)
+        db.execSQL("CREATE INDEX IF NOT EXISTS node_question_inventory ON nodes(question_id,complete_at,read_at)")
+    }
 
     @Synchronized
     fun read(url: Url, profile: String): OfflineResponse? {
@@ -267,6 +273,63 @@ class OfflineDatabase(
 
     @Synchronized
     fun questionForAnswer(id: String): String? = readableDatabase.rawQuery("SELECT question_id FROM nodes WHERE node_key=?", arrayOf("answer:$id")).use { if (it.moveToFirst() && !it.isNull(0)) it.getString(0) else null }
+
+    @Synchronized
+    fun unreadAnswerIds(questionId: String): List<String> = buildList {
+        readableDatabase.rawQuery("SELECT id FROM nodes WHERE kind='answer' AND question_id=? AND complete_at IS NOT NULL AND read_at IS NULL ORDER BY created_at,id", arrayOf(questionId)).use {
+            while (it.moveToNext()) add(it.getString(0))
+        }
+    }
+
+    private fun preparedAnswerIds(questionId: String): List<String> = meta("questionPreparedIds.$questionId")
+        ?.let {
+            runCatching { Json.parseToJsonElement(it).jsonArray.map { id -> id.jsonPrimitive.content } }.getOrNull()
+        }.orEmpty()
+
+    @Synchronized
+    fun questionPrepared(questionId: String, options: OfflineOptions): Boolean {
+        if (!hasDetail("question:$questionId")) return false
+        if (unreadAnswerIds(questionId).size >= options.answers) return true
+        // An exhausted question can legitimately contain fewer answers than the configured target.
+        return meta("questionAnswersExhausted.$questionId") == "true" &&
+            preparedAnswerIds(questionId).all { wasRead("answer:$it") || hasDetail("answer:$it") }
+    }
+
+    @Synchronized
+    fun needsComments(owner: String, options: OfflineOptions): Boolean {
+        if (options.comments == 0) return false
+        val present = readableDatabase.rawQuery("SELECT 1 FROM responses WHERE owner=? AND route LIKE '%/root_comment' LIMIT 1", arrayOf(owner)).use { it.moveToFirst() }
+        return !present || (meta("commentsPrepared.$owner")?.toIntOrNull() ?: 0) < options.comments ||
+            (meta("repliesPrepared.$owner")?.toIntOrNull() ?: 0) < options.replies
+    }
+
+    @Synchronized
+    fun enqueueMissingComments(owner: String, options: OfflineOptions) {
+        if (needsComments(owner, options)) enqueue("comments", owner, "", 2)
+    }
+
+    /** Queue shortages only; having an old timestamp never forces an otherwise complete group to refresh. */
+    @Synchronized
+    fun queueMissingPreparation(options: OfflineOptions): Boolean {
+        val questions = selected("question")
+        val articles = selected("article")
+        questions.forEach { id ->
+            if (!questionPrepared(id, options)) enqueue("question", id, "", 20)
+            preparedAnswerIds(id).filter { !wasRead("answer:$it") && !hasDetail("answer:$it") }.take(options.answers).forEach {
+                enqueue("answer", it, "", 10)
+            }
+            if (hasDetail("question:$id")) enqueueMissingComments("question:$id", options)
+            unreadAnswerIds(id).take(options.answers).forEach { enqueueMissingComments("answer:$it", options) }
+        }
+        articles.forEach { id ->
+            if (!hasDetail("article:$id")) {
+                enqueue("article", id, "", 18)
+            } else {
+                enqueueMissingComments("article:$id", options)
+            }
+        }
+        return questions.size < options.questions || articles.size < options.articles
+    }
 
     @Synchronized
     fun enqueue(kind: String, id: String, payload: String, priority: Int) {
@@ -550,12 +613,14 @@ class OfflineDatabase(
         try {
             // Remove read entries from stored lists first. The UI keeps its already-rendered snapshot.
             val lists = mutableListOf<Pair<String, JsonObject>>()
-            db.rawQuery("SELECT cache_key,body FROM responses WHERE is_list=1", null).use { cursor ->
-                while (cursor.moveToNext()) {
-                    val original = validOfflineResponse(cursor.getString(1)) ?: continue
-                    val data = original["data"] as? JsonArray ?: continue
-                    val remaining = data.filter { item -> offlineNodes(item).firstOrNull()?.key !in removable }
-                    if (remaining.size != data.size) lists += cursor.getString(0) to JsonObject(original + ("data" to JsonArray(remaining)))
+            if (removable.isNotEmpty()) {
+                db.rawQuery("SELECT cache_key,body FROM responses WHERE is_list=1", null).use { cursor ->
+                    while (cursor.moveToNext()) {
+                        val original = validOfflineResponse(cursor.getString(1)) ?: continue
+                        val data = original["data"] as? JsonArray ?: continue
+                        val remaining = data.filter { item -> offlineNodes(item).firstOrNull()?.key !in removable }
+                        if (remaining.size != data.size) lists += cursor.getString(0) to JsonObject(original + ("data" to JsonArray(remaining)))
+                    }
                 }
             }
             lists.forEach { (key, body) ->

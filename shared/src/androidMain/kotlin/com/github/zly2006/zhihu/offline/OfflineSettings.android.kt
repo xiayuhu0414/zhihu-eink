@@ -37,12 +37,12 @@ actual fun OfflineCacheSettings(highlightedSetting: String) {
     SettingItemGroup(title = "自动离线缓存") {
         SettingItemWithSwitch(
             title = { Text("自动准备内容") },
-            description = { Text("页面和操作保持不变；联网获取新数据，断网自动使用缓存。不下载视频。") },
+            description = { Text("打开应用时清理到期已读缓存并按数量补齐，数量足够就停止。不下载视频。") },
             checked = enabled,
             onCheckedChange = {
                 enabled = it
                 settings.putBoolean(OFFLINE_ENABLED, it)
-                OfflineRuntime.pauseAndReschedule()
+                OfflineRuntime.onSettingsChanged()
             },
             settingKey = OFFLINE_ENABLED,
             highlightedKey = highlightedSetting,
@@ -54,7 +54,7 @@ actual fun OfflineCacheSettings(highlightedSetting: String) {
             onCheckedChange = {
                 wifiOnly = it
                 settings.putBoolean(OFFLINE_WIFI_ONLY, it)
-                OfflineRuntime.pauseAndReschedule()
+                OfflineRuntime.onSettingsChanged()
             },
             settingKey = OFFLINE_WIFI_ONLY,
             highlightedKey = highlightedSetting,
@@ -88,13 +88,13 @@ actual fun OfflineCacheSettings(highlightedSetting: String) {
                 enabled = values.indices.all { values[it].value.toIntOrNull() in ranges[it] },
                 onClick = {
                     fields.forEachIndexed { index, field -> settings.putInt(field.first, values[index].value.toInt()) }
-                    OfflineRuntime.pauseAndReschedule()
+                    OfflineRuntime.onSettingsChanged()
                 },
             ) { Text("应用缓存设置") }
             Text("数量是准备目标；实际可用数量受接口、容量和后台运行限制。回复数是整个评论区的额外回复总量。", style = MaterialTheme.typography.bodySmall)
             Text(status, style = MaterialTheme.typography.bodyMedium)
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                OutlinedButton(onClick = { OfflineRuntime.onForeground(force = true) }, enabled = enabled) { Text("立即补充") }
+                OutlinedButton(onClick = { OfflineRuntime.requestPreparation() }, enabled = enabled) { Text("立即补充") }
                 TextButton(onClick = { OfflineRuntime.clear(readOnly = true) }) { Text("清理已读") }
             }
             TextButton(onClick = { confirmClear = true }) { Text("清空缓存") }

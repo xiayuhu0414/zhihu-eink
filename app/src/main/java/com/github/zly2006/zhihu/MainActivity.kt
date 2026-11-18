@@ -265,7 +265,7 @@ class MainActivity : ComponentActivity() {
 
     override fun onStart() {
         super.onStart()
-        com.github.zly2006.zhihu.offline.OfflineRuntime.onForeground()
+        com.github.zly2006.zhihu.offline.OfflineRuntime.onApplicationOpened()
         continuousUsageReminderManager.onAppForeground()
     }
 

@@ -179,4 +179,47 @@ class OfflineDatabaseTest {
         assertNotNull(db.resource(good))
         assertNull(db.resource(bad))
     }
+
+    @Test fun completeInventoryDoesNotQueueRefreshesEvenWithOldCacheTimestamps() {
+        val quota = OfflineOptions(questions = 1, answers = 2, articles = 1, comments = 0, replies = 0)
+        db.save(OfflineResponse("https://www.zhihu.com/api/v4/questions/7", "web", """{"id":7,"type":"question","title":"问题"}""", 1), emptySet(), quota)
+        for (id in listOf(42, 43)) db.save(OfflineResponse("https://www.zhihu.com/api/v4/answers/$id", "web", """{"id":$id,"type":"answer","content":"正文","question":{"type":"question","id":7}}""", 1), emptySet(), quota)
+        db.save(OfflineResponse("https://www.zhihu.com/api/v4/articles/8", "web", """{"id":8,"type":"article","title":"文章","content":"正文"}""", 1), emptySet(), quota)
+        while (true) db.task(Long.MAX_VALUE)?.let { db.finish(it) } ?: break
+        assertTrue(db.questionPrepared("7", quota))
+        assertFalse(db.queueMissingPreparation(quota))
+        assertNull(db.task(Long.MAX_VALUE))
+        db.reading("answer", "42", 100, true)
+        assertFalse(db.questionPrepared("7", quota))
+        assertFalse(db.queueMissingPreparation(quota)) // Existing question needs answers, not another recommendation request.
+        assertEquals("question", db.task(Long.MAX_VALUE)?.kind)
+    }
+
+    @Test fun exhaustedQuestionAcceptsAvailableAnswersButMissingBodiesAreRepaired() {
+        val quota = OfflineOptions(questions = 1, answers = 50, articles = 0, comments = 0)
+        db.save(OfflineResponse("https://www.zhihu.com/api/v4/questions/7", "web", """{"id":7,"type":"question","title":"问题"}""", 1), emptySet(), quota)
+        db.save(OfflineResponse("https://www.zhihu.com/api/v4/answers/42", "web", """{"id":42,"type":"answer","content":"正文","question":{"id":7,"type":"question"}}""", 1), emptySet(), quota)
+        db.meta("questionPreparedIds.7", "[\"42\"]")
+        db.meta("questionAnswersExhausted.7", "true")
+        assertTrue(db.questionPrepared("7", quota))
+        db.invalidate(Url("https://www.zhihu.com/api/v4/answers/42"), "web")
+        assertFalse(db.questionPrepared("7", quota))
+        db.queueMissingPreparation(quota)
+        assertEquals(2, db.stats().pending) // Question list and its missing answer are persisted for repair.
+    }
+
+    @Test fun commentPreparationOnlyRepeatsWhenBudgetGrowsOrCachedDataIsMissing() {
+        val quota = OfflineOptions(comments = 2, replies = 1)
+        val owner = "answer:42"
+        assertTrue(db.needsComments(owner, quota))
+        val comments = "https://www.zhihu.com/api/v4/comment_v5/answers/42/root_comment?order_by=score"
+        db.save(OfflineResponse(comments, "web", """{"data":[],"paging":{"is_end":true,"next":""}}""", 1), emptySet(), quota)
+        db.meta("commentsPrepared.$owner", "2")
+        db.meta("repliesPrepared.$owner", "1")
+        assertFalse(db.needsComments(owner, quota))
+        assertTrue(db.needsComments(owner, quota.copy(comments = 3)))
+        assertTrue(db.needsComments(owner, quota.copy(replies = 2)))
+        db.invalidate(Url(comments), "web")
+        assertTrue(db.needsComments(owner, quota))
+    }
 }

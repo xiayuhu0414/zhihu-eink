@@ -169,7 +169,9 @@ class OfflineDeviceTest {
 
         fun answer(id: String) = """{"id":$id,"type":"answer","content":"自动预取正文$id","excerpt":"预取摘要","question":{"id":7000001,"type":"question","title":"自动预取问题"},"author":{"id":"fixture","name":"测试作者","url":"https://www.zhihu.com/people/fixture","user_type":"people","headline":"","avatar_url":""}}"""
         val article = """{"id":8100001,"type":"article","title":"自动预取文章","content":"文章正文","author":{"id":"fixture","name":"测试作者","url":"https://www.zhihu.com/people/fixture","user_type":"people","headline":"","avatar_url":""}}"""
+        var networkRequests = 0
         val engine = MockEngine { request ->
+            networkRequests++
             val path = request.url.encodedPath
             val body = when {
                 path == "/topstory/recommend" -> {
@@ -212,6 +214,9 @@ class OfflineDeviceTest {
         try {
             db.clear()
             OfflineRuntime.initialize(context)
+            delay(300)
+            assertEquals("仅初始化或后台进程启动不应自动下载", 0, networkRequests)
+            OfflineRuntime.onApplicationOpened()
             withTimeout(60_000) {
                 while (!OfflineRuntime.status.value.contains("待处理 0")) delay(200)
             }
@@ -229,10 +234,21 @@ class OfflineDeviceTest {
                     .jsonObject["data"]!!
                     .jsonArray.size,
             )
+            delay(300)
+            val requestsAfterFill = networkRequests
+            repeat(5) { OfflineRuntime.onApplicationOpened() }
+            delay(300)
+            assertEquals("切回前台不应重复触发下载", requestsAfterFill, networkRequests)
+            OfflineRuntime.requestPreparation()
+            withTimeout(10_000) {
+                while (!OfflineRuntime.status.value.contains("待处理 0")) delay(100)
+            }
+            assertEquals("缓存配额已满足，手动检查也不应重复请求接口", requestsAfterFill, networkRequests)
             println("OFFLINE_DEVICE_AUTOMATIC questions=${stats.questions} answers=${stats.answers} articles=${stats.articles} pending=${stats.pending} responses=${stats.responses}")
+            println("OFFLINE_DEVICE_QUIET repeatedOpens=5 additionalRequests=${networkRequests - requestsAfterFill}")
         } finally {
             settings.putBoolean(OFFLINE_ENABLED, false)
-            OfflineRuntime.pauseAndReschedule()
+            OfflineRuntime.onSettingsChanged()
             db.close()
             com.github.zly2006.zhihu.account.accountHttpClientEngineForTesting = null
         }
@@ -284,6 +300,47 @@ class OfflineDeviceTest {
             println("OFFLINE_DEVICE_REAL_CLIENT answer=true questionFeeds=2 comments=2 webHome=2 mobileHome=2")
         } finally {
             env.close()
+        }
+    }
+
+    @Test fun startupMaintenanceCleansReadWithoutDownloadingWhenUnreadQuotaIsFull() = runBlocking {
+        assertTrue(connected())
+        val settings = com.github.zly2006.zhihu.platform
+            .androidSettingsStore(context)
+        settings.putBoolean(OFFLINE_ENABLED, true)
+        settings.putBoolean(OFFLINE_WIFI_ONLY, false)
+        settings.putBoolean("loginForRecommendation", false)
+        settings.putInt(OFFLINE_QUESTIONS, 1)
+        settings.putInt(OFFLINE_ANSWERS, 2)
+        settings.putInt(OFFLINE_ARTICLES, 0)
+        settings.putInt(OFFLINE_COMMENTS, 2)
+        settings.putInt(OFFLINE_REPLIES, 1)
+        settings.putInt(OFFLINE_READ_HOURS, 0)
+        var networkRequests = 0
+        com.github.zly2006.zhihu.account.accountHttpClientEngineForTesting = MockEngine {
+            networkRequests++
+            error("未读库存足够，不应请求网络")
+        }
+        val db = OfflineDatabase(context, "guest")
+        try {
+            assertTrue(db.hasDetail("article:8100001"))
+            db.reading("article", "8100001", 100, true)
+            db.meta("active.article:8100001", "0")
+            OfflineRuntime.initialize(context)
+            OfflineRuntime.onApplicationOpened()
+            withTimeout(10_000) {
+                while (!OfflineRuntime.status.value.contains("待处理 0")) delay(100)
+            }
+            assertFalse(db.hasDetail("article:8100001"))
+            assertTrue(db.hasDetail("answer:42000001"))
+            assertTrue(db.hasDetail("answer:42000002"))
+            assertEquals(0, networkRequests)
+            println("OFFLINE_DEVICE_STARTUP_CLEAN readArticleRemoved=true unreadAnswers=2 networkRequests=$networkRequests")
+        } finally {
+            settings.putBoolean(OFFLINE_ENABLED, false)
+            OfflineRuntime.onSettingsChanged()
+            db.close()
+            com.github.zly2006.zhihu.account.accountHttpClientEngineForTesting = null
         }
     }
 }
