@@ -221,14 +221,14 @@ object OfflineRuntime {
         val env = SharedAndroidPaginationEnvironment(checkNotNull(applicationContext), true)
         try {
             val options = options()
-            val deadline = System.currentTimeMillis() + 8 * 60_000
             db.prepareTargets(options)
             db.markReadQuestions()
             db.clean(options)
+            db.resetCapacityLimit()
             val needCandidates = db.queueMissingPreparation(options)
             status.value = "正在按数量补齐缓存"
             try {
-                if (needCandidates) seed(env, db, options, deadline)
+                if (needCandidates) seed(env, db, options)
             } catch (cancelled: CancellationException) {
                 throw cancelled
             } catch (error: Exception) {
@@ -236,29 +236,29 @@ object OfflineRuntime {
                 // Existing persisted tasks remain useful if only the recommendation endpoint is unavailable.
             }
             var completed = 0
-            while (allowed() && accountId() == id && System.currentTimeMillis() < deadline) {
+            while (allowed() && accountId() == id) {
                 currentCoroutineContext().ensureActive()
-                if (db.stats().bytes >= options.capacityMb * 1024L * 1024L) {
-                    status.value = "缓存空间已满，暂停补充"
+                if (db.capacityLimited || db.stats().bytes >= options.capacityMb * 1024L * 1024L) {
+                    status.value = "缓存空间不足，暂停补充"
                     break
                 }
                 val task = db.task(System.currentTimeMillis())
                 if (task == null) {
                     if (db.missingResources(1).isEmpty()) break
-                    downloadImages(db, id, 20, deadline)
+                    downloadImages(db, id, 20)
                     continue
                 }
                 try {
                     executeTask(env, db, task, options)
                     completed++
-                    if (completed % 5 == 0) downloadImages(db, id, 4, deadline)
+                    if (completed % 5 == 0) downloadImages(db, id, 4)
                     status.value = "正在准备内容，已处理 $completed 项"
                 } catch (cancelled: CancellationException) {
                     throw cancelled
                 } catch (error: Exception) {
                     db.retry(task)
                     val code = (error as? io.ktor.client.plugins.ResponseException)?.response?.status?.value
-                    if (code == 401 || code == 403 || code == 429) {
+                    if (error is java.io.IOException || code == 401 || code == 403 || code == 408 || code == 429 || (code != null && code >= 500)) {
                         status.value = "接口暂不可用，稍后继续"
                         break
                     }
@@ -267,8 +267,8 @@ object OfflineRuntime {
             }
             if (accountId() != id) return@withLock
             val stats = db.stats(includePendingImages = true)
-            status.value = if (stats.bytes >= options.capacityMb * 1024L * 1024L) {
-                "缓存空间已满，暂停补充"
+            status.value = if (db.capacityLimited || stats.bytes >= options.capacityMb * 1024L * 1024L) {
+                "缓存空间不足，暂停补充"
             } else {
                 "缓存检查完成 · 问题 ${stats.questions} · 回答 ${stats.answers} · 文章 ${stats.articles} · 图片 ${stats.images}（待补 ${stats.pendingImages}） · 待处理 ${stats.pending} · ${stats.bytes / 1024 / 1024} MB"
             }
@@ -303,7 +303,7 @@ object OfflineRuntime {
         return validOfflineResponse(response.bodyAsText()) ?: error("接口未返回有效内容")
     }
 
-    private suspend fun seed(env: SharedAndroidPaginationEnvironment, db: OfflineDatabase, options: OfflineOptions, deadline: Long) {
+    private suspend fun seed(env: SharedAndroidPaginationEnvironment, db: OfflineDatabase, options: OfflineOptions) {
         // Current recommendation mode owns the candidate source; mobile and web caches remain distinct.
         val settings = androidSettingsStore(checkNotNull(applicationContext))
         if (options.questions == 0 && options.articles == 0) return
@@ -315,11 +315,12 @@ object OfflineRuntime {
             else -> listOf(ZhihuRequestProfile.Web)
         }
         for (profile in profiles) {
+            if (db.capacityLimited) break
             if (db.selected("question").size >= options.questions && db.selected("article").size >= options.articles) break
             var next: String? = "https://api.zhihu.com/topstory/recommend"
             val seen = mutableSetOf<String>()
             for (page in 0 until 10) {
-                if (!allowed() || next == null || !seen.add(next) || System.currentTimeMillis() >= deadline) break
+                if (!allowed() || db.capacityLimited || next == null || !seen.add(next)) break
                 val response = fetch(env, next, if (profile == ZhihuRequestProfile.Mobile) "" else OFFLINE_LIST_INCLUDE, profile)
                 next = resolveOfflineNext(next, response)
                 if (db.selected("question").size >= options.questions && db.selected("article").size >= options.articles) break
@@ -445,9 +446,9 @@ object OfflineRuntime {
         }
     }
 
-    private suspend fun downloadImages(db: OfflineDatabase, account: String, limit: Int, deadline: Long) {
+    private suspend fun downloadImages(db: OfflineDatabase, account: String, limit: Int) {
         for (url in db.missingResources(limit)) {
-            if (!allowed() || accountId() != account || System.currentTimeMillis() >= deadline) return
+            if (!allowed() || db.capacityLimited || accountId() != account) return
             try {
                 val response = resourceClient.get(url)
                 val type = response

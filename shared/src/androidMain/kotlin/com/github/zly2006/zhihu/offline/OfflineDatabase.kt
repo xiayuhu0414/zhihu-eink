@@ -53,6 +53,14 @@ class OfflineDatabase(
     ) {
     val directory = File(context.noBackupFilesDir, "offline/${offlineHash(accountId)}/resources").apply { mkdirs() }
 
+    @Volatile var capacityLimited: Boolean = false
+        private set
+
+    @Synchronized
+    fun resetCapacityLimit() {
+        capacityLimited = false
+    }
+
     override fun onCreate(db: SQLiteDatabase) {
         db.execSQL("CREATE TABLE responses (cache_key TEXT PRIMARY KEY, url TEXT NOT NULL, profile TEXT NOT NULL, route TEXT NOT NULL, owner TEXT, body TEXT NOT NULL, bytes INTEGER NOT NULL, is_list INTEGER NOT NULL, saved_at INTEGER NOT NULL)")
         db.execSQL("CREATE INDEX response_owner ON responses(owner)")
@@ -136,7 +144,10 @@ class OfflineDatabase(
         }
         val nodes = offlineNodes(body)
         val oldBytes = readableDatabase.rawQuery("SELECT bytes FROM responses WHERE cache_key=?", arrayOf(key)).use { if (it.moveToFirst()) it.getLong(0) else 0L }
-        if (stats().bytes - oldBytes + body.toString().toByteArray().size > options.capacityMb * 1024L * 1024L) return
+        if (stats().bytes - oldBytes + body.toString().toByteArray().size > options.capacityMb * 1024L * 1024L) {
+            capacityLimited = true
+            return
+        }
         val owner = contentOwner(url) ?: Regex("/comment_v5/comment/([0-9]+)")
             .find(url.encodedPath)
             ?.groupValues
@@ -519,7 +530,10 @@ class OfflineDatabase(
     @Synchronized
     fun saveResource(url: String, bytes: ByteArray, mime: String, capacity: Long = Long.MAX_VALUE) {
         val existing = readableDatabase.rawQuery("SELECT size FROM resources WHERE url=?", arrayOf(url)).use { if (it.moveToFirst()) it.getLong(0) else 0L }
-        if (stats().bytes - existing + bytes.size > capacity) return
+        if (stats().bytes - existing + bytes.size > capacity) {
+            capacityLimited = true
+            return
+        }
         val name = offlineHash(url)
         val temporary = File(directory, "$name.tmp")
         temporary.writeBytes(bytes)
@@ -689,6 +703,7 @@ class OfflineDatabase(
 
     @Synchronized
     fun clear() {
+        capacityLimited = false
         val db = writableDatabase
         db.beginTransaction()
         try {

@@ -178,6 +178,9 @@ class OfflineDatabaseTest {
         db.saveResource(bad, byteArrayOf(4, 5), "image/jpeg", base + 3)
         assertNotNull(db.resource(good))
         assertNull(db.resource(bad))
+        assertTrue(db.capacityLimited)
+        db.resetCapacityLimit()
+        assertFalse(db.capacityLimited)
     }
 
     @Test fun completeInventoryDoesNotQueueRefreshesEvenWithOldCacheTimestamps() {
