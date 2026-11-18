@@ -17,6 +17,7 @@
 
 package com.github.zly2006.zhihu.ui
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.ScrollState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -44,7 +45,6 @@ import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.ThumbUp
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
@@ -102,6 +102,7 @@ import com.github.zly2006.zhihu.reading.toReadingQueueItem
 import com.github.zly2006.zhihu.ui.components.AuthorBadge
 import com.github.zly2006.zhihu.ui.components.CommentScreenComponent
 import com.github.zly2006.zhihu.ui.components.ContentEndMarker
+import com.github.zly2006.zhihu.ui.components.EinkLoadingIndicator
 import com.github.zly2006.zhihu.ui.components.PageTurnTarget
 import com.github.zly2006.zhihu.ui.components.ShareDialog
 import com.github.zly2006.zhihu.ui.components.VotersSheet
@@ -341,10 +342,7 @@ fun PinScreen(
                                 readingPlayerState.status in setOf(
                                     ReadingPlaybackStatus.Initializing,
                                     ReadingPlaybackStatus.Loading,
-                                ) -> CircularProgressIndicator(
-                                modifier = Modifier.size(22.dp),
-                                strokeWidth = 2.dp,
-                            )
+                                ) -> EinkLoadingIndicator(modifier = Modifier.size(22.dp))
                             isCurrentReadingItem && readingPlayerState.isActivelyPlaying -> Icon(
                                 Icons.Default.Pause,
                                 contentDescription = "暂停朗读",
@@ -385,7 +383,7 @@ fun PinScreen(
                             .testTag(PIN_SCREEN_LOADING_TAG),
                         contentAlignment = Alignment.Center,
                     ) {
-                        CircularProgressIndicator()
+                        EinkLoadingIndicator()
                     }
                 }
 
@@ -887,20 +885,17 @@ private fun PinPollResultRow(
     }
     val rowShape = RoundedCornerShape(12.dp)
     val indicatorColor = if (option.isSelected) {
-        MaterialTheme.colorScheme.primaryContainer
+        MaterialTheme.colorScheme.primary.copy(alpha = 0.18f)
     } else {
-        MaterialTheme.colorScheme.surfaceVariant
+        MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.18f)
     }
     Surface(
         modifier = Modifier
             .fillMaxWidth()
             .testTag(pinScreenPollOptionTag(option.id)),
         shape = rowShape,
-        color = if (option.isSelected) {
-            MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.35f)
-        } else {
-            MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f)
-        },
+        border = BorderStroke(if (option.isSelected) 2.dp else 1.dp, MaterialTheme.colorScheme.outline),
+        color = MaterialTheme.colorScheme.surface,
     ) {
         Row(
             modifier = Modifier

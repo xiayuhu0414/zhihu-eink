@@ -269,7 +269,7 @@ fun OpenImagePreviewContent(
 
                     if (targetPage != null && targetPage != pagerState.currentPage) {
                         coroutineScope.launch {
-                            pagerState.animateScrollToPage(targetPage)
+                            pagerState.scrollToPage(targetPage)
                         }
                     }
                     totalDrag = 0f

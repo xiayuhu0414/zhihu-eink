@@ -70,7 +70,6 @@ import com.github.zly2006.zhihu.nlp.SentenceEmbeddingManager
 import com.github.zly2006.zhihu.platform.androidSettingsStore
 import com.github.zly2006.zhihu.platform.androidUserMessageSink
 import com.github.zly2006.zhihu.reading.ContentReadingService
-import com.github.zly2006.zhihu.theme.AndroidThemeSettings
 import com.github.zly2006.zhihu.theme.ZhihuTheme
 import com.github.zly2006.zhihu.ui.AndroidArticleNavigationHandoff
 import com.github.zly2006.zhihu.ui.AndroidZhihuMain
@@ -144,7 +143,6 @@ class MainActivity : ComponentActivity() {
         clearShareImageCache(this)
         continuousUsageReminderManager = ContinuousUsageReminderManager(this)
         AccountData.loadData(this)
-        AndroidThemeSettings.initialize(this)
         androidKeywordSemanticMatcher = NlpServiceKeywordSemanticMatcher
         androidKeywordWeightExtractor = KeywordWeightExtractor { text, topN ->
             NLPService.extractKeywordsWithWeight(text, topN)
@@ -231,7 +229,7 @@ class MainActivity : ComponentActivity() {
 
         ImageLoader
             .Builder(this)
-            .crossfade(true)
+            .crossfade(false)
             .components {
                 // add(SvgDecoder.Factory())
             }.memoryCache {

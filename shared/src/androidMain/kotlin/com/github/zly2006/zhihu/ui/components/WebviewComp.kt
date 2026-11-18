@@ -468,7 +468,7 @@ fun WebviewComp(
             if (scrollState != null) {
                 view.scrollToHeightCallback = { elementY, maxY ->
                     coroutineScope.launch {
-                        scrollState.animateScrollTo(elementY * scrollState.maxValue / maxY)
+                        scrollState.scrollTo(elementY * scrollState.maxValue / maxY)
                     }
                 }
             }

@@ -41,7 +41,6 @@ import androidx.compose.material.icons.filled.GetApp
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.outlined.DesktopWindows
 import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -76,6 +75,7 @@ import com.github.zly2006.zhihu.theme.ThemeManager
 import com.github.zly2006.zhihu.ui.TtsState
 import com.github.zly2006.zhihu.ui.articleActionText
 import com.github.zly2006.zhihu.ui.articleSpeechText
+import com.github.zly2006.zhihu.ui.components.EinkLoadingIndicator
 import com.github.zly2006.zhihu.ui.components.MyModalBottomSheet
 import com.github.zly2006.zhihu.ui.components.ShareAction
 import com.github.zly2006.zhihu.ui.components.rememberShareActionExecutor
@@ -253,10 +253,7 @@ fun ArticleActionsMenu(
                     )
                 } else {
                     when (ttsState) {
-                        TtsState.Initializing, TtsState.Uninitialized -> CircularProgressIndicator(
-                            modifier = Modifier.height(24.dp),
-                            strokeWidth = 2.dp,
-                        )
+                        TtsState.Initializing, TtsState.Uninitialized -> EinkLoadingIndicator(modifier = Modifier.height(24.dp))
 
                         else -> Icon(
                             if (!isReadingPlayerSupported && ttsState.isSpeaking) {

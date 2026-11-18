@@ -93,9 +93,10 @@ fun luoTianYiUrlLauncher(context: Context, uri: Uri) {
             return
         }
     }
-    val color = androidSettingsStore(context).getInt("luotianyi_color", 0xff_66CCFF.toInt())
+    val color = android.graphics.Color.WHITE
     val intent = CustomTabsIntent
         .Builder()
+        .setColorScheme(CustomTabsIntent.COLOR_SCHEME_LIGHT)
         .setDefaultColorSchemeParams(
             CustomTabColorSchemeParams
                 .Builder()

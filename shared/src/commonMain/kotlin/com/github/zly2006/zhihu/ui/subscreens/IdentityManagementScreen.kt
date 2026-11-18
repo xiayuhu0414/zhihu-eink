@@ -40,7 +40,6 @@ import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.SwitchAccount
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Checkbox
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -79,6 +78,7 @@ import com.github.zly2006.zhihu.data.ZhihuJson
 import com.github.zly2006.zhihu.navigation.LocalNavigator
 import com.github.zly2006.zhihu.navigation.requestLoginNavigation
 import com.github.zly2006.zhihu.platform.rememberUserMessageSink
+import com.github.zly2006.zhihu.ui.components.EinkLoadingIndicator
 import com.github.zly2006.zhihu.ui.components.SettingItem
 import com.github.zly2006.zhihu.ui.components.SettingItemGroup
 import com.github.zly2006.zhihu.ui.components.pageTurnViewportWithGuide
@@ -229,7 +229,7 @@ fun IdentityManagementScreen() {
                             .height(160.dp),
                         contentAlignment = Alignment.Center,
                     ) {
-                        CircularProgressIndicator()
+                        EinkLoadingIndicator()
                     }
                 }
 
@@ -280,7 +280,7 @@ fun IdentityManagementScreen() {
                                 },
                                 endAction = {
                                     when {
-                                        isSwitching -> CircularProgressIndicator(Modifier.size(20.dp))
+                                        isSwitching -> EinkLoadingIndicator(modifier = Modifier.size(20.dp))
                                         isCurrent -> Text(
                                             "当前登录",
                                             color = MaterialTheme.colorScheme.primary,
@@ -355,7 +355,7 @@ fun IdentityManagementScreen() {
                             enabled = state.canCreateSubAccount && !state.busy,
                             endAction = {
                                 if (state.creating) {
-                                    CircularProgressIndicator(Modifier.size(20.dp))
+                                    EinkLoadingIndicator(modifier = Modifier.size(20.dp))
                                 }
                             },
                             onClick = {

@@ -37,8 +37,6 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
@@ -55,6 +53,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.github.zly2006.zhihu.nlp.KeywordWithWeight
+import com.github.zly2006.zhihu.ui.components.EinkFilterChip
+import com.github.zly2006.zhihu.ui.components.EinkLoadingIndicator
 import kotlin.math.roundToInt
 
 /**
@@ -105,7 +105,7 @@ fun BlockByKeywordsDialogContent(
                                 .padding(32.dp),
                             horizontalAlignment = Alignment.CenterHorizontally,
                         ) {
-                            CircularProgressIndicator()
+                            EinkLoadingIndicator()
                             Spacer(modifier = Modifier.height(16.dp))
                             Text("正在提取关键词...")
                         }
@@ -140,7 +140,7 @@ fun BlockByKeywordsDialogContent(
                         ) {
                             extractedKeywords.forEach { keyword ->
                                 val isSelected = keyword in selectedKeywords
-                                FilterChip(
+                                EinkFilterChip(
                                     selected = isSelected,
                                     onClick = {
                                         selectedKeywords = if (isSelected) {
@@ -221,10 +221,7 @@ fun BlockByKeywordsDialogContent(
                         enabled = selectedKeywords.isNotEmpty() && !isLoading && !isAdding,
                     ) {
                         if (isAdding) {
-                            CircularProgressIndicator(
-                                modifier = Modifier.width(16.dp),
-                                color = MaterialTheme.colorScheme.onPrimary,
-                            )
+                            EinkLoadingIndicator(modifier = Modifier.width(16.dp), color = MaterialTheme.colorScheme.onPrimary)
                         } else {
                             Text("屏蔽 (${selectedKeywords.size})")
                         }

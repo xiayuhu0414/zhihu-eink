@@ -79,7 +79,6 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Checkbox
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -158,6 +157,7 @@ import com.github.zly2006.zhihu.platform.rememberSettingsStore
 import com.github.zly2006.zhihu.reading.ReadingCommentOrder
 import com.github.zly2006.zhihu.reading.loadReadingPreferences
 import com.github.zly2006.zhihu.reading.saveReadingPreferences
+import com.github.zly2006.zhihu.ui.components.EinkLoadingIndicator
 import com.github.zly2006.zhihu.ui.components.PageTurnFab
 import com.github.zly2006.zhihu.ui.components.pageTurnContentEndMarker
 import com.github.zly2006.zhihu.ui.components.pageTurnViewportWithGuide
@@ -687,7 +687,7 @@ fun CommentScreen(
             showEmojiPicker = false
             isSending = false
             coroutineScope.launch {
-                listState.animateScrollToItem(
+                listState.scrollToItem(
                     0,
                     0,
                 )
@@ -715,7 +715,7 @@ fun CommentScreen(
                     when {
                         viewModel.isLoading && viewModel.allData.isEmpty() -> {
                             Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                                CircularProgressIndicator()
+                                EinkLoadingIndicator()
                             }
                         }
 
@@ -1012,7 +1012,7 @@ fun CommentScreen(
                                                 .padding(8.dp),
                                             contentAlignment = Alignment.Center,
                                         ) {
-                                            CircularProgressIndicator(modifier = Modifier.size(24.dp))
+                                            EinkLoadingIndicator(modifier = Modifier.size(24.dp))
                                         }
                                     }
                                 }
@@ -1228,11 +1228,7 @@ fun CommentScreen(
                                 enabled = !isSending && commentFieldValue.text.isNotBlank(),
                             ) {
                                 if (isSending) {
-                                    CircularProgressIndicator(
-                                        modifier = Modifier.size(16.dp),
-                                        strokeWidth = 2.dp,
-                                        color = MaterialTheme.colorScheme.primary,
-                                    )
+                                    EinkLoadingIndicator(modifier = Modifier.size(16.dp), color = MaterialTheme.colorScheme.primary)
                                 } else {
                                     Icon(
                                         Icons.AutoMirrored.Outlined.Send,
@@ -1730,7 +1726,7 @@ fun AuthorTag(authorTag: String) {
         modifier = Modifier
             .border(
                 width = 0.5.dp,
-                color = Color.Gray,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
                 shape = RoundedCornerShape(3.dp),
             ).padding(horizontal = 3.dp),
     ) {

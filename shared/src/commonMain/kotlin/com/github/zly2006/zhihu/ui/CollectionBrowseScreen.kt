@@ -34,7 +34,6 @@ import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Shuffle
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -47,7 +46,6 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -68,6 +66,8 @@ import com.github.zly2006.zhihu.data.FeedDisplayItem
 import com.github.zly2006.zhihu.navigation.LocalNavigator
 import com.github.zly2006.zhihu.platform.rememberUserMessageSink
 import com.github.zly2006.zhihu.ui.components.DraggableRefreshButton
+import com.github.zly2006.zhihu.ui.components.EinkLoadingIndicator
+import com.github.zly2006.zhihu.ui.components.EinkPullToRefreshBox
 import com.github.zly2006.zhihu.viewmodel.CollectionContentEnvironment
 import com.github.zly2006.zhihu.viewmodel.CollectionContentViewModel
 import com.github.zly2006.zhihu.viewmodel.CollectionsViewModel
@@ -187,7 +187,7 @@ fun CollectionBrowseScreen(
                     }
                 }
             }
-            TopLevelReselectAction.ScrollToTop -> listState.animateScrollToItem(0)
+            TopLevelReselectAction.ScrollToTop -> listState.scrollToItem(0)
             null -> Unit
         }
         cachedScrollToTopTrigger = scrollToTopTrigger
@@ -316,11 +316,11 @@ fun CollectionBrowseScreen(
                         .padding(innerPadding),
                     contentAlignment = Alignment.Center,
                 ) {
-                    CircularProgressIndicator(modifier = Modifier.testTag(COLLECTION_BROWSE_LOADING_COLLECTIONS_TAG))
+                    EinkLoadingIndicator(modifier = Modifier.testTag(COLLECTION_BROWSE_LOADING_COLLECTIONS_TAG))
                 }
             }
             else -> {
-                PullToRefreshBox(
+                EinkPullToRefreshBox(
                     isRefreshing = collectionsViewModel.isLoading || contentViewModel.isLoading,
                     onRefresh = {
                         if (!useLocalCollections) {
@@ -367,7 +367,7 @@ fun CollectionBrowseScreen(
                             },
                         ) {
                             if (contentViewModel.isLoading) {
-                                CircularProgressIndicator(modifier = Modifier.size(30.dp))
+                                EinkLoadingIndicator(modifier = Modifier.size(30.dp))
                             } else {
                                 Icon(Icons.Filled.Refresh, contentDescription = "重新随机加载")
                             }

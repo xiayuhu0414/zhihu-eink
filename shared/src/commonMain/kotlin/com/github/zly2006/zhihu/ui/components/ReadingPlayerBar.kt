@@ -44,7 +44,6 @@ import androidx.compose.material.icons.filled.SkipPrevious
 import androidx.compose.material.icons.filled.Speed
 import androidx.compose.material.icons.filled.Stop
 import androidx.compose.material3.Button
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -79,6 +78,7 @@ import com.github.zly2006.zhihu.platform.exportTestTagsForUiAutomation
 import com.github.zly2006.zhihu.reading.ReadingPlaybackStatus
 import com.github.zly2006.zhihu.reading.ReadingPlayerState
 import com.github.zly2006.zhihu.reading.ReadingQueueItem
+import com.github.zly2006.zhihu.ui.components.EinkLoadingIndicator
 import kotlin.math.abs
 import kotlin.math.roundToInt
 
@@ -199,10 +199,7 @@ fun ReadingPlayerBar(
                         when (state.status) {
                             ReadingPlaybackStatus.Initializing,
                             ReadingPlaybackStatus.Loading,
-                            -> CircularProgressIndicator(
-                                modifier = Modifier.size(22.dp),
-                                strokeWidth = 2.dp,
-                            )
+                            -> EinkLoadingIndicator(modifier = Modifier.size(22.dp))
                             ReadingPlaybackStatus.Playing -> Icon(Icons.Default.Pause, contentDescription = null)
                             else -> Icon(Icons.Default.PlayArrow, contentDescription = null)
                         }

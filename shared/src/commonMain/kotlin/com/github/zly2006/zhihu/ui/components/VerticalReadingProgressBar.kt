@@ -130,12 +130,12 @@ fun VerticalReadingProgressBar(
     if (alpha <= 0f && !isDragging) return
 
     val resolvedTrackColor = if (trackColor == Color.Unspecified) {
-        MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.45f)
+        MaterialTheme.colorScheme.outlineVariant
     } else {
         trackColor
     }
     val resolvedThumbColor = if (thumbColor == Color.Unspecified) {
-        MaterialTheme.colorScheme.primary.copy(alpha = 0.88f)
+        MaterialTheme.colorScheme.primary
     } else {
         thumbColor
     }

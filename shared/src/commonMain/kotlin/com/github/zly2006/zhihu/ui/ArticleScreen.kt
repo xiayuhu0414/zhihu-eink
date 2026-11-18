@@ -60,7 +60,6 @@ import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.SkipNext
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.Icon
@@ -99,10 +98,7 @@ import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.testTag
-import androidx.compose.ui.semantics.ProgressBarRangeInfo
 import androidx.compose.ui.semantics.contentDescription
-import androidx.compose.ui.semantics.progressBarRangeInfo
-import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -147,6 +143,7 @@ import com.github.zly2006.zhihu.ui.components.CommentScreenComponent
 import com.github.zly2006.zhihu.ui.components.ContentEndMarker
 import com.github.zly2006.zhihu.ui.components.DEFAULT_ANSWER_SWITCH_SENSITIVITY
 import com.github.zly2006.zhihu.ui.components.DraggableRefreshButton
+import com.github.zly2006.zhihu.ui.components.EinkLoadingIndicator
 import com.github.zly2006.zhihu.ui.components.ExportDialogComponent
 import com.github.zly2006.zhihu.ui.components.MyModalBottomSheet
 import com.github.zly2006.zhihu.ui.components.VerticalReadingProgressBar
@@ -700,7 +697,7 @@ fun ArticleScreen(
                                                 Spacer(modifier = Modifier.width(4.dp))
                                                 Icon(painterResource(Res.drawable.ic_vote_up_24dp), "赞同")
                                                 Spacer(modifier = Modifier.width(4.dp))
-                                                Text(text = viewModel.voteUpCount.toString())
+                                                Text(text = "已赞同 ${viewModel.voteUpCount}")
                                                 Spacer(modifier = Modifier.width(8.dp))
                                             }
                                         }
@@ -715,7 +712,7 @@ fun ArticleScreen(
                                             ) {
                                                 Icon(painterResource(Res.drawable.ic_vote_down_24dp), "反对")
                                                 Spacer(modifier = Modifier.width(4.dp))
-                                                Text("反对")
+                                                Text("已反对")
                                                 Spacer(modifier = Modifier.width(8.dp))
                                             }
                                         }
@@ -800,7 +797,7 @@ fun ArticleScreen(
                                             )
                                             Spacer(modifier = Modifier.width(4.dp))
                                             Text(
-                                                text = viewModel.voteUpCount.toString(),
+                                                text = if (viewModel.voteUpState == VoteUpState.Up) "✓ ${viewModel.voteUpCount}" else viewModel.voteUpCount.toString(),
                                                 color = upContentColor,
                                                 style = MaterialTheme.typography.titleMedium,
                                             )
@@ -997,13 +994,13 @@ fun ArticleScreen(
                         fun ColumnScope.DateTexts() {
                             Text(
                                 "发布于 " + formatFullDateTime(viewModel.createdAt),
-                                color = Color.Gray,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 fontSize = 11.sp,
                             )
                             if (viewModel.createdAt != viewModel.updatedAt) {
                                 Text(
                                     "编辑于 " + formatFullDateTime(viewModel.updatedAt),
-                                    color = Color.Gray,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                                     fontSize = 11.sp,
                                 )
                             }
@@ -1077,25 +1074,10 @@ fun ArticleScreen(
                                 Spacer(Modifier.height(16.dp))
                             }
                             if (viewModel.isLoading) {
-                                Column(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .testTag("article_body_skeleton")
-                                        .semantics {
-                                            contentDescription = "正在加载全文"
-                                            progressBarRangeInfo = ProgressBarRangeInfo.Indeterminate
-                                        },
-                                    verticalArrangement = Arrangement.spacedBy(24.dp),
-                                ) {
-                                    repeat(2) {
-                                        Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                                            repeat(3) {
-                                                ArticleLoadingPlaceholder(Modifier.fillMaxWidth().height(16.dp))
-                                            }
-                                            ArticleLoadingPlaceholder(Modifier.fillMaxWidth(0.6f).height(16.dp))
-                                        }
-                                    }
-                                }
+                                EinkLoadingIndicator(
+                                    label = "正在加载全文…",
+                                    modifier = Modifier.fillMaxWidth().padding(vertical = 24.dp).testTag("article_body_skeleton"),
+                                )
                             }
                         }
 
@@ -1106,7 +1088,7 @@ fun ArticleScreen(
                                     verticalArrangement = Arrangement.spacedBy(8.dp),
                                 ) {
                                     viewModel.topics.forEach { topic ->
-                                        androidx.compose.material3.FilterChip(
+                                        com.github.zly2006.zhihu.ui.components.EinkFilterChip(
                                             selected = false,
                                             onClick = { navigator.onNavigate(Topic(topic.id, topic.name)) },
                                             label = { Text("# ${topic.name}") },
@@ -1160,7 +1142,7 @@ fun ArticleScreen(
                                     if (viewModel.ipInfo != null) {
                                         Text(
                                             "IP属地：${viewModel.ipInfo}",
-                                            color = Color.Gray,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
                                             fontSize = 11.sp,
                                         )
                                     }
@@ -1189,7 +1171,7 @@ fun ArticleScreen(
                                             if (viewModel.ipInfo != null) {
                                                 Text(
                                                     "IP属地：${viewModel.ipInfo}",
-                                                    color = Color.Gray,
+                                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                                                     fontSize = 11.sp,
                                                 )
                                             }
@@ -1310,7 +1292,7 @@ fun ArticleScreen(
                 preferenceName = "buttonSkipAnswer",
             ) {
                 if (answerNavigationState.navigatingToNextAnswer) {
-                    CircularProgressIndicator(modifier = Modifier.size(30.dp))
+                    EinkLoadingIndicator(modifier = Modifier.size(30.dp))
                 } else {
                     Icon(Icons.Filled.SkipNext, contentDescription = "下一个回答")
                 }

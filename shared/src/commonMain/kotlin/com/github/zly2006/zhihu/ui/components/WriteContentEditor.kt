@@ -34,7 +34,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Image
 import androidx.compose.material.icons.filled.Save
 import androidx.compose.material.icons.filled.Visibility
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -54,6 +53,7 @@ import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.github.zly2006.zhihu.ui.components.EinkLoadingIndicator
 
 @Composable
 fun WriteContentMarkdownEditor(
@@ -201,10 +201,7 @@ fun WriteContentFabColumn(
                 modifier = Modifier.testTag(imageTag),
                 icon = {
                     if (isUploadingImage) {
-                        CircularProgressIndicator(
-                            modifier = Modifier.size(18.dp),
-                            strokeWidth = 2.dp,
-                        )
+                        EinkLoadingIndicator(modifier = Modifier.size(18.dp))
                     } else {
                         Icon(Icons.Filled.Image, contentDescription = "插入图片")
                     }

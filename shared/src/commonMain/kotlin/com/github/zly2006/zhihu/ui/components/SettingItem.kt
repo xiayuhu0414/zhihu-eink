@@ -17,10 +17,8 @@
 
 package com.github.zly2006.zhihu.ui.components
 
-import androidx.compose.animation.core.Animatable
-import androidx.compose.animation.core.FastOutSlowInEasing
-import androidx.compose.animation.core.LinearEasing
-import androidx.compose.animation.core.tween
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
@@ -51,7 +49,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.composed
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.graphics.Shape
@@ -65,7 +62,7 @@ import kotlinx.coroutines.delay
 /**
  * 为设置项提供跳转高亮和滚动定位能力。
  *
- * 账号页、分享弹窗等入口会带着具体 `settingKey` 打开设置页；目标设置项通过这个 modifier 注册位置并播放短暂高亮，
+ * 账号页、分享弹窗等入口会带着具体 `settingKey` 打开设置页；目标设置项通过这个 modifier 注册位置并显示静态边框，
  * 让用户知道刚才跳到的是哪一项。新增可被外部入口直达的设置时，应复用这个机制，而不是手写一次性滚动逻辑。
  */
 fun Modifier.highlightSetting(
@@ -93,33 +90,17 @@ fun Modifier.highlightSetting(
 
     if (settingKey != null) {
         val isTarget = settingKey.isNotEmpty() && settingKey == highlightedKey
-        val highlightAlpha = remember { Animatable(0f) }
-        val highlightColor = color ?: MaterialTheme.colorScheme.primaryContainer
-
+        val highlightColor = color ?: MaterialTheme.colorScheme.outline
         LaunchedEffect(isTarget) {
             if (isTarget) {
                 actualBringIntoViewRequester?.let {
                     delay(200)
                     it.bringIntoView()
                 }
-                // 闪烁两次：亮、暗、亮、暗、亮。
-                repeat(2) {
-                    highlightAlpha.animateTo(0.4f, tween(200, easing = LinearEasing))
-                    highlightAlpha.animateTo(0.1f, tween(200, easing = LinearEasing))
-                }
-                highlightAlpha.animateTo(0.4f, tween(200))
-                delay(2000)
-                highlightAlpha.animateTo(0f, tween(1000, easing = FastOutSlowInEasing))
-            } else {
-                highlightAlpha.animateTo(0f, tween(500))
             }
         }
-
-        modifier = modifier.drawWithContent {
-            drawContent()
-            if (highlightAlpha.value > 0f) {
-                drawRect(highlightColor.copy(alpha = highlightAlpha.value))
-            }
+        if (isTarget) {
+            modifier = modifier.border(2.dp, highlightColor, shape)
         }
     }
 
@@ -408,6 +389,7 @@ fun SettingItem(
                 )
         },
         shape = shape,
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
         color = colors.containerColor,
         contentColor = if (enabled) {
             colors.contentColor

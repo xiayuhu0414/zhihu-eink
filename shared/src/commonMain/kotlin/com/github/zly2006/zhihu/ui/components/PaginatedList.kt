@@ -17,8 +17,6 @@
 
 package com.github.zly2006.zhihu.ui.components
 
-import androidx.compose.animation.core.Spring
-import androidx.compose.animation.core.spring
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -30,7 +28,6 @@ import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -42,6 +39,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.github.zly2006.zhihu.platform.rememberSettingsStore
+import com.github.zly2006.zhihu.ui.components.EinkLoadingIndicator
 import com.github.zly2006.zhihu.ui.rememberObservedSetting
 import com.github.zly2006.zhihu.ui.subscreens.DEFAULT_SHOW_CONTENT_END_MARKER
 import com.github.zly2006.zhihu.ui.subscreens.PREF_SHOW_CONTENT_END_MARKER
@@ -56,7 +54,7 @@ val ProgressIndicatorFooter: @Composable (LazyListState) -> Unit = { state ->
         contentAlignment = Alignment.Center,
     ) {
         if (LocalPullToRefreshViewModel.current?.isPullToRefresh != true) {
-            CircularProgressIndicator()
+            EinkLoadingIndicator()
         }
     }
 }
@@ -102,16 +100,9 @@ private fun uniqueDuplicatePaginatedListKey(
 @Composable
 private fun <T> LazyItemScope.PaginatedListItem(
     item: T,
-    animateItemPlacement: Boolean,
     itemContent: @Composable LazyItemScope.(T) -> Unit,
 ) {
-    Box(
-        modifier = Modifier.animateItem(
-            fadeInSpec = spring(stiffness = Spring.StiffnessMediumLow),
-            fadeOutSpec = spring(stiffness = Spring.StiffnessMediumLow),
-            placementSpec = if (animateItemPlacement) spring(stiffness = Spring.StiffnessMediumLow) else null,
-        ),
-    ) {
+    Box {
         itemContent(item)
     }
 }
@@ -124,7 +115,6 @@ fun <T> PaginatedList(
     contentPadding: PaddingValues = PaddingValues(0.dp),
     listState: LazyListState = rememberLazyListState(),
     reverseLayout: Boolean = false,
-    animateItemPlacement: Boolean = true,
     isEnd: () -> Boolean = { false },
     footer: @Composable ((LazyListState) -> Unit)? = null,
     key: ((T) -> Any)? = null,
@@ -168,11 +158,11 @@ fun <T> PaginatedList(
         if (key != null) {
             val itemKeys = uniquePaginatedListKeys(items, key)
             itemsIndexed(items, key = { index, _ -> itemKeys[index] }) { _, item ->
-                PaginatedListItem(item, animateItemPlacement, itemContent)
+                PaginatedListItem(item, itemContent)
             }
         } else {
             items(items) { item ->
-                PaginatedListItem(item, animateItemPlacement, itemContent)
+                PaginatedListItem(item, itemContent)
             }
         }
 

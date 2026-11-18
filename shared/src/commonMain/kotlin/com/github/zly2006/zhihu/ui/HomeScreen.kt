@@ -62,7 +62,6 @@ import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Badge
 import androidx.compose.material3.BadgedBox
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FloatingActionButton
@@ -132,6 +131,7 @@ import com.github.zly2006.zhihu.ui.components.AnnouncementCard
 import com.github.zly2006.zhihu.ui.components.AnnouncementCardDefaults
 import com.github.zly2006.zhihu.ui.components.BlockByKeywordsDialog
 import com.github.zly2006.zhihu.ui.components.DraggableRefreshButton
+import com.github.zly2006.zhihu.ui.components.EinkLoadingIndicator
 import com.github.zly2006.zhihu.ui.components.FeedAuthorBlockConfirmDialog
 import com.github.zly2006.zhihu.ui.components.FeedAuthorBlockRequest
 import com.github.zly2006.zhihu.ui.components.FeedAuthorBlockType
@@ -307,7 +307,7 @@ fun HomeScreen(
             )
         ) {
             TopLevelReselectAction.Refresh -> viewModel.refresh(paginationEnvironment)
-            TopLevelReselectAction.ScrollToTop -> listState.animateScrollToItem(0)
+            TopLevelReselectAction.ScrollToTop -> listState.scrollToItem(0)
             null -> {}
         }
         cachedScrollToTopTrigger = scrollToTopTrigger
@@ -571,8 +571,8 @@ fun HomeScreen(
                                                         modifier = Modifier
                                                             .size(40.dp)
                                                             .border(
-                                                                0.5.dp,
-                                                                MaterialTheme.colorScheme.outline.copy(alpha = 0.1f),
+                                                                1.dp,
+                                                                MaterialTheme.colorScheme.outlineVariant,
                                                                 CircleShape,
                                                             ).clip(CircleShape),
                                                     )
@@ -906,7 +906,7 @@ fun HomeScreen(
                         onClick = { viewModel.refresh(paginationEnvironment) },
                     ) {
                         if (viewModel.isLoading) {
-                            CircularProgressIndicator(modifier = Modifier.size(30.dp))
+                            EinkLoadingIndicator(modifier = Modifier.size(30.dp))
                         } else {
                             Icon(Icons.Default.Refresh, contentDescription = "刷新")
                         }

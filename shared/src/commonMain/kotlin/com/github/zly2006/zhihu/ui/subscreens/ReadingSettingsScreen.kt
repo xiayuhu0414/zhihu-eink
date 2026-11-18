@@ -36,7 +36,6 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.IconButtonDefaults
@@ -67,6 +66,7 @@ import com.github.zly2006.zhihu.reading.ReadingTemplateField
 import com.github.zly2006.zhihu.reading.buildReadingTemplatePreview
 import com.github.zly2006.zhihu.reading.loadReadingPreferences
 import com.github.zly2006.zhihu.reading.saveReadingPreferences
+import com.github.zly2006.zhihu.ui.components.EinkFilterChip
 import com.github.zly2006.zhihu.ui.components.SettingItem
 import com.github.zly2006.zhihu.ui.components.SettingItemGroup
 import com.github.zly2006.zhihu.ui.components.SettingItemWithSwitch
@@ -240,7 +240,7 @@ fun ReadingSettingsScreen() {
                             horizontalArrangement = Arrangement.spacedBy(8.dp),
                         ) {
                             ReadingPublishedTimeMode.entries.forEach { mode ->
-                                FilterChip(
+                                EinkFilterChip(
                                     selected = preferences.publishedTimeMode == mode,
                                     onClick = { persist(preferences.copy(publishedTimeMode = mode)) },
                                     label = { Text(mode.displayName) },
@@ -265,7 +265,7 @@ fun ReadingSettingsScreen() {
                             horizontalArrangement = Arrangement.spacedBy(8.dp),
                         ) {
                             ReadingRelativeTimePrecision.entries.forEach { precision ->
-                                FilterChip(
+                                EinkFilterChip(
                                     selected = preferences.relativeTimePrecision == precision,
                                     onClick = {
                                         persist(preferences.copy(relativeTimePrecision = precision))
@@ -339,7 +339,7 @@ fun ReadingSettingsScreen() {
                             horizontalArrangement = Arrangement.spacedBy(8.dp),
                         ) {
                             ReadingCommentOrder.entries.forEach { order ->
-                                FilterChip(
+                                EinkFilterChip(
                                     selected = preferences.commentOrder == order,
                                     onClick = { persist(preferences.copy(commentOrder = order)) },
                                     label = { Text(order.displayName) },
@@ -364,7 +364,7 @@ fun ReadingSettingsScreen() {
                                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                             ) {
                                 queueLimitPresets.forEach { limit ->
-                                    FilterChip(
+                                    EinkFilterChip(
                                         selected = preferences.queueLimit == limit,
                                         onClick = {
                                             customQueueLimitText = ""

@@ -60,7 +60,6 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilledTonalButton
-import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -112,6 +111,7 @@ import com.github.zly2006.zhihu.platform.rememberUserMessageSink
 import com.github.zly2006.zhihu.platform.rememberZhihuWebUrlOpener
 import com.github.zly2006.zhihu.reading.RegisterReadingQueueSource
 import com.github.zly2006.zhihu.ui.components.CommentScreenComponent
+import com.github.zly2006.zhihu.ui.components.EinkFilterChip
 import com.github.zly2006.zhihu.ui.components.FeedCard
 import com.github.zly2006.zhihu.ui.components.FeedPullToRefresh
 import com.github.zly2006.zhihu.ui.components.PaginatedList
@@ -563,7 +563,7 @@ private fun QuestionAnimatedBodyHeader(
                             fontWeight = FontWeight.Medium,
                         )
                         Spacer(Modifier.weight(1f))
-                        FilterChip(
+                        EinkFilterChip(
                             selected = currentSort == "default",
                             onClick = { onSortChange("default") },
                             modifier =
@@ -572,7 +572,7 @@ private fun QuestionAnimatedBodyHeader(
                                 },
                             label = { Text("默认") },
                         )
-                        FilterChip(
+                        EinkFilterChip(
                             selected = currentSort == "updated",
                             onClick = { onSortChange("updated") },
                             modifier =
@@ -726,7 +726,7 @@ private fun QuestionDetailWithTopics(
         if (topics.isNotEmpty()) {
             FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 topics.forEach { topic ->
-                    FilterChip(
+                    EinkFilterChip(
                         selected = false,
                         onClick = { onTopicClick(topic) },
                         label = { Text("# ${topic.name}") },

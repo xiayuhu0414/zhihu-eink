@@ -371,7 +371,7 @@ fun SystemAndUpdateSettingsScreen(
                                 is SystemUpdateState.NoUpdate, is SystemUpdateState.Error -> {
                                     checkForUpdate.check()
                                     if (updateStateFlow.value is SystemUpdateState.UpdateAvailable) {
-                                        scrollState.animateScrollTo(0)
+                                        scrollState.scrollTo(0)
                                     }
                                 }
                                 SystemUpdateState.Latest -> {

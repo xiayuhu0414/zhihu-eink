@@ -43,7 +43,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.Badge
 import androidx.compose.material3.BadgedBox
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -83,6 +82,7 @@ import com.github.zly2006.zhihu.platform.rememberUserMessageSink
 import com.github.zly2006.zhihu.reading.RegisterReadingQueueSource
 import com.github.zly2006.zhihu.ui.TopLevelReselectAction
 import com.github.zly2006.zhihu.ui.components.DraggableRefreshButton
+import com.github.zly2006.zhihu.ui.components.EinkLoadingIndicator
 import com.github.zly2006.zhihu.ui.components.FeedAuthorBlockConfirmDialog
 import com.github.zly2006.zhihu.ui.components.FeedAuthorBlockRequest
 import com.github.zly2006.zhihu.ui.components.FeedAuthorBlockType
@@ -172,7 +172,7 @@ private fun FollowScreenContent(
             onTabSelected = { index ->
                 viewModel.selectedTabIndex = index
                 coroutineScope.launch {
-                    pagerState.animateScrollToPage(index)
+                    pagerState.scrollToPage(index)
                 }
             },
             modifier = Modifier
@@ -370,7 +370,7 @@ fun FollowRecommendScreen(
         if (isActive) {
             when (action) {
                 TopLevelReselectAction.Refresh -> viewModel.refresh(environment)
-                TopLevelReselectAction.ScrollToTop -> listState.animateScrollToItem(0)
+                TopLevelReselectAction.ScrollToTop -> listState.scrollToItem(0)
                 null -> {}
             }
         }
@@ -476,7 +476,7 @@ fun FollowRecommendScreen(
                     },
                 ) {
                     if (viewModel.isLoading) {
-                        CircularProgressIndicator(modifier = Modifier.size(36.dp))
+                        EinkLoadingIndicator(modifier = Modifier.size(36.dp))
                     } else {
                         Icon(Icons.Default.Refresh, contentDescription = "刷新")
                     }
@@ -524,7 +524,7 @@ fun FollowDynamicScreen(
         if (isActive) {
             when (action) {
                 TopLevelReselectAction.Refresh -> viewModel.refresh(environment)
-                TopLevelReselectAction.ScrollToTop -> listState.animateScrollToItem(0)
+                TopLevelReselectAction.ScrollToTop -> listState.scrollToItem(0)
                 null -> {}
             }
         }
@@ -631,7 +631,7 @@ fun FollowDynamicScreen(
                     },
                 ) {
                     if (viewModel.isLoading) {
-                        CircularProgressIndicator(modifier = Modifier.size(36.dp))
+                        EinkLoadingIndicator(modifier = Modifier.size(36.dp))
                     } else {
                         Icon(Icons.Default.Refresh, contentDescription = "刷新")
                     }

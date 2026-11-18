@@ -43,7 +43,6 @@ import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
@@ -90,6 +89,7 @@ import com.github.zly2006.zhihu.navigation.Topic
 import com.github.zly2006.zhihu.navigation.WritePin
 import com.github.zly2006.zhihu.platform.rememberSettingsStore
 import com.github.zly2006.zhihu.platform.rememberUserMessageSink
+import com.github.zly2006.zhihu.ui.components.EinkLoadingIndicator
 import com.github.zly2006.zhihu.ui.components.FeedCard
 import com.github.zly2006.zhihu.ui.components.PaginatedList
 import com.github.zly2006.zhihu.ui.components.ProgressIndicatorFooter
@@ -529,7 +529,7 @@ fun TopicScreen(topic: Topic) {
                             horizontalArrangement = Arrangement.spacedBy(8.dp),
                         ) {
                             TopicDiscussionSort.entries.forEach { sort ->
-                                androidx.compose.material3.FilterChip(
+                                com.github.zly2006.zhihu.ui.components.EinkFilterChip(
                                     selected = viewModel.discussionSort == sort,
                                     onClick = { viewModel.selectDiscussionSort(environment, sort) },
                                     label = { Text(sort.title) },
@@ -544,7 +544,7 @@ fun TopicScreen(topic: Topic) {
                             horizontalArrangement = Arrangement.spacedBy(8.dp),
                         ) {
                             TopicIdeasSort.entries.forEach { sort ->
-                                androidx.compose.material3.FilterChip(
+                                com.github.zly2006.zhihu.ui.components.EinkFilterChip(
                                     selected = viewModel.ideasSort == sort,
                                     onClick = { viewModel.selectIdeasSort(environment, sort) },
                                     label = { Text(sort.title) },
@@ -630,7 +630,7 @@ private fun TopicHeader(
                         .semantics { selected = detail?.isFollowing == true },
             ) {
                 if (isFollowingChanging) {
-                    CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp)
+                    EinkLoadingIndicator(modifier = Modifier.size(18.dp))
                 } else {
                     Text(if (detail?.isFollowing == true) "已关注" else "关注话题", maxLines = 1)
                 }

@@ -18,7 +18,9 @@
 package com.github.zly2006.zhihu.ui.components
 
 import androidx.compose.animation.ExperimentalSharedTransitionApi
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -150,7 +152,7 @@ fun FeedCard(
         .orEmpty()
     val showPinImages = showFeedThumbnail && pinImages.isNotEmpty() && !item.isFiltered
     val isSelected = item.navDestination != null && item.navDestination == selectedDestination
-    val selectedContainerColor = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.55f)
+    val selectedContainerColor = MaterialTheme.colorScheme.surface
     val performClick: (FeedDisplayItem) -> Unit = { clickedItem ->
         val destination = clickedItem.prepareNavigation(readingQueueSourceId)
         if (onClick != null) {
@@ -170,7 +172,7 @@ fun FeedCard(
             modifier = modifier
                 .fillMaxWidth()
                 .semantics { selected = isSelected }
-                .then(if (isSelected) Modifier.background(selectedContainerColor) else Modifier)
+                .then(if (isSelected) Modifier.border(2.dp, MaterialTheme.colorScheme.outline) else Modifier)
                 .then(if (showPinImages || duo3CardLayout) Modifier else Modifier.heightIn(max = maxHeight)),
         ) {
             Column(
@@ -192,7 +194,7 @@ fun FeedCard(
                     showSourceLabel = showSourceLabel,
                 )
             }
-            HorizontalDivider(thickness = 0.3.dp)
+            HorizontalDivider(thickness = 1.dp)
         }
     } else {
         Box(
@@ -203,6 +205,7 @@ fun FeedCard(
                 .padding(horizontal = horizontalPadding, vertical = 8.dp),
         ) {
             Card(
+                border = BorderStroke(if (isSelected) 2.dp else 1.dp, MaterialTheme.colorScheme.outline),
                 colors = if (isSelected) {
                     CardDefaults.cardColors(containerColor = selectedContainerColor)
                 } else if (duo3CardAppearance) {
@@ -217,11 +220,7 @@ fun FeedCard(
                     .fillMaxWidth()
                     .let { if (duo3CardAppearance) it.clip(RoundedCornerShape(24.dp)) else it }
                     .clickable { performClick(item) },
-                elevation = if (duo3CardAppearance) {
-                    CardDefaults.cardElevation()
-                } else {
-                    CardDefaults.cardElevation(defaultElevation = 2.dp)
-                },
+                elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
             ) {
                 Column(
                     modifier = if (duo3CardAppearance) {

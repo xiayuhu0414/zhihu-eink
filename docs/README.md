@@ -11,3 +11,5 @@
 - [问题回答缩略图协议](protocol/question-answer-thumbnails.md)：接口字段和列表封面处理。
 
 项目来源与许可见根目录 [README](../README.md#来源与许可) 和 [LICENSE](../LICENSE)。
+
+- [墨水屏显示与动画改造](eink-display.md)：固定显示策略、保留彩色内容、静态加载和验证边界。

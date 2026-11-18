@@ -17,74 +17,91 @@
 
 package com.github.zly2006.zhihu.theme
 
-import androidx.compose.material3.ColorScheme
+import androidx.compose.animation.core.FiniteAnimationSpec
+import androidx.compose.animation.core.snap
+import androidx.compose.foundation.LocalOverscrollFactory
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
+import androidx.compose.material3.LocalRippleConfiguration
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.darkColorScheme
+import androidx.compose.material3.MotionScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.graphics.Color
-import com.materialkolor.dynamicColorScheme
 
-private val DarkColorScheme = darkColorScheme(
-    primary = Purple80,
-    secondary = PurpleGrey80,
-    tertiary = Pink80,
-)
-
-private val LightColorScheme = lightColorScheme(
-    primary = Purple40,
-    secondary = PurpleGrey40,
-    tertiary = Pink40,
-    background = Color(0xFFFFFBFE),
-    surface = Color(0xFFFFFBFE),
+/** 墨水屏版固定使用此色板，不读取系统深色、壁纸取色或旧版自定义颜色。 */
+val EinkColorScheme = lightColorScheme(
+    primary = Color(0xFF174A7E),
     onPrimary = Color.White,
+    primaryContainer = Color.White,
+    onPrimaryContainer = Color(0xFF174A7E),
+    inversePrimary = Color.White,
+    secondary = Color(0xFF365C3D),
     onSecondary = Color.White,
+    secondaryContainer = Color.White,
+    onSecondaryContainer = Color.Black,
+    tertiary = Color(0xFF664066),
     onTertiary = Color.White,
-    onBackground = Color(0xFF1C1B1F),
-    onSurface = Color(0xFF1C1B1F),
+    tertiaryContainer = Color.White,
+    onTertiaryContainer = Color.Black,
+    background = Color.White,
+    onBackground = Color.Black,
+    surface = Color.White,
+    onSurface = Color.Black,
+    surfaceVariant = Color.White,
+    onSurfaceVariant = Color(0xFF333333),
+    surfaceTint = Color.Transparent,
+    inverseSurface = Color.Black,
+    inverseOnSurface = Color.White,
+    error = Color(0xFF9B1C20),
+    onError = Color.White,
+    errorContainer = Color.White,
+    onErrorContainer = Color(0xFF9B1C20),
+    outline = Color.Black,
+    outlineVariant = Color(0xFF666666),
+    scrim = Color.Black,
+    surfaceBright = Color.White,
+    surfaceDim = Color.White,
+    surfaceContainer = Color.White,
+    surfaceContainerHigh = Color.White,
+    surfaceContainerHighest = Color.White,
+    surfaceContainerLow = Color.White,
+    surfaceContainerLowest = Color.White,
 )
 
-@Composable
-fun ZhihuTheme(
-    content: @Composable () -> Unit,
-) {
-    val useDynamicColor = ThemeManager.getUseDynamicColor()
-    val customBackgroundColor = ThemeManager.getBackgroundColor()
-    val darkTheme = ThemeManager.isDarkTheme()
-    val platformDynamicColorScheme = platformDynamicColorScheme(darkTheme)
+/** Material 控件直接到达目标状态，避免切换时生成中间灰阶。 */
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
+object EinkMotionScheme : MotionScheme {
+    override fun <T> defaultSpatialSpec(): FiniteAnimationSpec<T> = snap()
 
-    val baseColorScheme = when {
-        useDynamicColor && platformDynamicColorScheme != null -> platformDynamicColorScheme
-        !useDynamicColor -> {
-            dynamicColorScheme(
-                seedColor = ThemeManager.getCustomColor(),
-                isDark = darkTheme,
-                isAmoled = false,
-            )
-        }
-        darkTheme -> DarkColorScheme
-        else -> LightColorScheme
-    }
+    override fun <T> fastSpatialSpec(): FiniteAnimationSpec<T> = snap()
 
-    val colorScheme = baseColorScheme.copy(
-        background = customBackgroundColor,
-        surface = customBackgroundColor,
-    )
+    override fun <T> slowSpatialSpec(): FiniteAnimationSpec<T> = snap()
 
-    PlatformSystemBarEffect(darkTheme)
+    override fun <T> defaultEffectsSpec(): FiniteAnimationSpec<T> = snap()
 
-    MaterialTheme(
-        colorScheme = colorScheme,
-        typography = Typography,
-        content = content,
-    )
+    override fun <T> fastEffectsSpec(): FiniteAnimationSpec<T> = snap()
+
+    override fun <T> slowEffectsSpec(): FiniteAnimationSpec<T> = snap()
 }
 
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
-expect fun currentSystemInDarkTheme(): Boolean
-
-@Composable
-expect fun platformDynamicColorScheme(darkTheme: Boolean): ColorScheme?
+fun ZhihuTheme(content: @Composable () -> Unit) {
+    PlatformSystemBarEffect(darkTheme = false)
+    CompositionLocalProvider(
+        LocalRippleConfiguration provides null,
+        LocalOverscrollFactory provides null,
+    ) {
+        MaterialTheme(
+            colorScheme = EinkColorScheme,
+            motionScheme = EinkMotionScheme,
+            typography = Typography,
+            content = content,
+        )
+    }
+}
 
 @Composable
 expect fun PlatformSystemBarEffect(darkTheme: Boolean)

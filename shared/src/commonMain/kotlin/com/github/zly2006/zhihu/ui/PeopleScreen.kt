@@ -18,6 +18,7 @@
 package com.github.zly2006.zhihu.ui
 
 import androidx.compose.animation.ExperimentalAnimationApi
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -808,7 +809,7 @@ fun PeopleScreen(
                                 selected = pagerState.currentPage == index,
                                 onClick = {
                                     coroutineScope.launch {
-                                        pagerState.animateScrollToPage(index)
+                                        pagerState.scrollToPage(index)
                                     }
                                 },
                                 modifier = Modifier.testTag("people_screen_tab_$index"),
@@ -1161,6 +1162,7 @@ private fun FollowingSubscriptionsPage(
                 OutlinedButton(
                     onClick = { selectedPage = index },
                     modifier = Modifier.testTag("people_screen_subscription_tab_$index"),
+                    border = BorderStroke(if (selectedPage == index) 2.dp else 1.dp, MaterialTheme.colorScheme.outline),
                     shape = RoundedCornerShape(8.dp),
                     colors = if (selectedPage == index) {
                         ButtonDefaults.outlinedButtonColors(
@@ -1171,7 +1173,7 @@ private fun FollowingSubscriptionsPage(
                         ButtonDefaults.outlinedButtonColors()
                     },
                 ) {
-                    Text(title)
+                    Text(if (selectedPage == index) "✓ $title" else title)
                 }
             }
         }
@@ -1610,6 +1612,7 @@ private fun SortBar(
     ) {
         OutlinedButton(
             onClick = { onSortChange("voteups") },
+            border = BorderStroke(if (currentSort == "voteups") 2.dp else 1.dp, MaterialTheme.colorScheme.outline),
             modifier = Modifier
                 .weight(1f)
                 .then(if (hotTag != null) Modifier.testTag(hotTag) else Modifier),
@@ -1623,10 +1626,11 @@ private fun SortBar(
                 ButtonDefaults.outlinedButtonColors()
             },
         ) {
-            Text("按热度")
+            Text(if (currentSort == "voteups") "✓ 按热度" else "按热度")
         }
         OutlinedButton(
             onClick = { onSortChange("created") },
+            border = BorderStroke(if (currentSort == "created") 2.dp else 1.dp, MaterialTheme.colorScheme.outline),
             modifier = Modifier
                 .weight(1f)
                 .then(if (timeTag != null) Modifier.testTag(timeTag) else Modifier),
@@ -1640,7 +1644,7 @@ private fun SortBar(
                 ButtonDefaults.outlinedButtonColors()
             },
         ) {
-            Text("按时间")
+            Text(if (currentSort == "created") "✓ 按时间" else "按时间")
         }
     }
 }
@@ -1806,22 +1810,22 @@ private fun UserInfoHeader(
         ) {
             StatItem("回答", viewModel.answerCount, onClick = {
                 coroutineScope.launch {
-                    pagerState.animateScrollToPage(0)
+                    pagerState.scrollToPage(0)
                 }
             }, tag = PEOPLE_SCREEN_ANSWER_COUNT_TAG)
             StatItem("文章", viewModel.articleCount, onClick = {
                 coroutineScope.launch {
-                    pagerState.animateScrollToPage(1)
+                    pagerState.scrollToPage(1)
                 }
             }, tag = PEOPLE_SCREEN_ARTICLE_COUNT_TAG)
             StatItem("粉丝", viewModel.followerCount, onClick = {
                 coroutineScope.launch {
-                    pagerState.animateScrollToPage(7)
+                    pagerState.scrollToPage(7)
                 }
             }, tag = PEOPLE_SCREEN_FOLLOWER_COUNT_TAG)
             StatItem("关注", viewModel.followingCount, onClick = {
                 coroutineScope.launch {
-                    pagerState.animateScrollToPage(8)
+                    pagerState.scrollToPage(8)
                 }
             }, tag = PEOPLE_SCREEN_FOLLOWING_COUNT_TAG)
         }

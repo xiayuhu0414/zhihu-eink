@@ -32,7 +32,6 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.MaterialTheme
@@ -48,6 +47,7 @@ import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
 import com.github.zly2006.zhihu.data.DataHolder
 import com.github.zly2006.zhihu.navigation.Person
+import com.github.zly2006.zhihu.ui.components.EinkLoadingIndicator
 
 @Composable
 @OptIn(ExperimentalMaterial3Api::class)
@@ -127,7 +127,7 @@ fun VotersSheet(
                                 .padding(vertical = 32.dp),
                             contentAlignment = Alignment.Center,
                         ) {
-                            CircularProgressIndicator()
+                            EinkLoadingIndicator()
                         }
                     }
                 } else if (voters.isEmpty()) {
@@ -147,7 +147,7 @@ fun VotersSheet(
                             modifier = Modifier.fillMaxWidth(),
                         ) {
                             if (isLoading) {
-                                CircularProgressIndicator(modifier = Modifier.size(18.dp))
+                                EinkLoadingIndicator(modifier = Modifier.size(18.dp))
                                 Spacer(modifier = Modifier.width(8.dp))
                             }
                             Text(if (isLoading) "加载中" else "加载更多")

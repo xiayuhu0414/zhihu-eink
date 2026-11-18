@@ -33,7 +33,6 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.Checkbox
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
@@ -55,6 +54,7 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
+import com.github.zly2006.zhihu.ui.components.EinkLoadingIndicator
 import io.ktor.client.HttpClient
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.delay
@@ -287,10 +287,7 @@ fun PhoneLoginPane(onLoginSuccess: (String) -> Unit) {
                 modifier = Modifier.testTag("phone_login_send_digits"),
             ) {
                 if (isSendingDigits) {
-                    CircularProgressIndicator(
-                        modifier = Modifier.size(20.dp),
-                        strokeWidth = 2.dp,
-                    )
+                    EinkLoadingIndicator(modifier = Modifier.size(20.dp))
                 } else {
                     Text(
                         if (resendSeconds > 0) {
@@ -353,10 +350,7 @@ fun PhoneLoginPane(onLoginSuccess: (String) -> Unit) {
                 .testTag("phone_login_submit"),
         ) {
             if (isLoggingIn) {
-                CircularProgressIndicator(
-                    modifier = Modifier.size(20.dp),
-                    strokeWidth = 2.dp,
-                )
+                EinkLoadingIndicator(modifier = Modifier.size(20.dp))
             } else {
                 Text("登录")
             }

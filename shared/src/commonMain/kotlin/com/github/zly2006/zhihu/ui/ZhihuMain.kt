@@ -31,6 +31,7 @@ import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.border
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -48,6 +49,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.PagerState
 import androidx.compose.foundation.pager.rememberPagerState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Bookmarks
 import androidx.compose.material.icons.filled.Group
@@ -82,7 +84,6 @@ import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.graphics.compositeOver
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
@@ -436,7 +437,7 @@ fun ZhihuMain(
         }
         val targetPage = pageIndexForDestination(destination)
         coroutineScope.launch {
-            mainPagerState.animateScrollToPage(targetPage)
+            mainPagerState.scrollToPage(targetPage)
         }
     }
 
@@ -473,7 +474,7 @@ fun ZhihuMain(
             !showDetailPane,
     ) {
         coroutineScope.launch {
-            mainPagerState.animateScrollToPage(0)
+            mainPagerState.scrollToPage(0)
         }
     }
 
@@ -611,8 +612,9 @@ fun ZhihuMain(
                                         icon: ImageVector,
                                     ) {
                                         val tag = "nav_tab_${destination.name.lowercase()}"
+                                        val isSelected = currentBottomDestination?.let { it::class == destination::class } == true
                                         NavigationBarItem(
-                                            currentBottomDestination?.let { it::class == destination::class } == true,
+                                            isSelected,
                                             onClick = {
                                                 isReadingPlayerExpandedByUser = false
                                                 if (currentBottomDestination?.let { it::class == destination::class } != true) {
@@ -621,20 +623,25 @@ fun ZhihuMain(
                                                     scrollToTopTrigger++
                                                 }
                                             },
-                                            label = { Text(label) },
+                                            label = { Text(if (isSelected) "✓ $label" else label) },
                                             alwaysShowLabel = true,
-                                            colors = if (!isDarkTheme) {
-                                                NavigationBarItemDefaults.colors().copy(
-                                                    selectedIndicatorColor =
-                                                        MaterialTheme.colorScheme.secondaryContainer
-                                                            .copy(alpha = 0.92f)
-                                                            .compositeOver(MaterialTheme.colorScheme.secondary),
-                                                )
-                                            } else {
-                                                NavigationBarItemDefaults.colors()
-                                            },
+                                            colors = NavigationBarItemDefaults.colors(
+                                                indicatorColor = MaterialTheme.colorScheme.surface,
+                                                selectedIconColor = MaterialTheme.colorScheme.primary,
+                                                selectedTextColor = MaterialTheme.colorScheme.onSurface,
+                                                unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                                                unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                                            ),
                                             icon = {
-                                                Icon(icon, contentDescription = label)
+                                                Icon(
+                                                    icon,
+                                                    contentDescription = label,
+                                                    modifier = if (isSelected) {
+                                                        Modifier.border(2.dp, MaterialTheme.colorScheme.outline, RoundedCornerShape(4.dp)).padding(4.dp)
+                                                    } else {
+                                                        Modifier.padding(4.dp)
+                                                    },
+                                                )
                                             },
                                             modifier = Modifier.padding(top = 4.dp).testTag(tag),
                                         )

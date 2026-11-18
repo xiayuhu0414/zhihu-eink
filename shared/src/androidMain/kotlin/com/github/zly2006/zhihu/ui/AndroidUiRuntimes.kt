@@ -203,7 +203,7 @@ actual fun ArticleWebViewContent(
                         delay(100)
                     }
                     Log.i("zhihu-scroll", "scroll to $rememberedScrollY, max= ${scrollState.maxValue}, sync on")
-                    scrollState.animateScrollTo(rememberedScrollY)
+                    scrollState.scrollTo(rememberedScrollY)
                     onRememberedScrollYSyncChange(true)
                 }
             }

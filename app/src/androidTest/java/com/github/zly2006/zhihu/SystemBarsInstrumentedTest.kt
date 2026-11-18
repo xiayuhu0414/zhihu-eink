@@ -30,8 +30,6 @@ import androidx.core.view.WindowInsetsCompat
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import com.github.zly2006.zhihu.test.resetAppPreferences
-import com.github.zly2006.zhihu.theme.AndroidThemeSettings
-import com.github.zly2006.zhihu.theme.ThemeMode
 import com.github.zly2006.zhihu.theme.ZhihuTheme
 import org.junit.Assert.assertTrue
 import org.junit.Before
@@ -48,7 +46,6 @@ class SystemBarsInstrumentedTest {
     @Before
     fun setUp() {
         composeRule.resetAppPreferences()
-        AndroidThemeSettings.setThemeMode(composeRule.activity, ThemeMode.DARK)
     }
 
     /**
@@ -56,7 +53,7 @@ class SystemBarsInstrumentedTest {
      * Fixed by: https://github.com/zly2006/zhihu-plus-plus/pull/571
      */
     @Test
-    fun darkThemeStatusBarIsEdgeToEdge() {
+    fun einkStatusBarIsEdgeToEdge() {
         val instrumentation = InstrumentationRegistry.getInstrumentation()
         val originalActivity = composeRule.activity
         instrumentation.runOnMainSync {
@@ -67,7 +64,7 @@ class SystemBarsInstrumentedTest {
             }
         }
         composeRule.waitForIdle()
-        waitUntilStatusBarColor(originalActivity, "dark theme")
+        waitUntilStatusBarColor(originalActivity, "eink theme")
     }
 
     private fun waitUntilStatusBarColor(
@@ -121,5 +118,5 @@ private fun SolidThemeSurface() {
     )
 }
 
-private const val SOLID_SURFACE_COLOR = 0xFF121212.toInt()
+private const val SOLID_SURFACE_COLOR = 0xFFFFFFFF.toInt()
 private const val REQUIRED_MATCHING_FRAMES = 3

@@ -17,36 +17,12 @@
 
 package com.github.zly2006.zhihu.ui.article
 
-import androidx.compose.animation.core.RepeatMode
-import androidx.compose.animation.core.animateFloat
-import androidx.compose.animation.core.infiniteRepeatable
-import androidx.compose.animation.core.rememberInfiniteTransition
-import androidx.compose.animation.core.tween
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.drawBehind
-import androidx.compose.ui.geometry.CornerRadius
-import androidx.compose.ui.unit.dp
+import com.github.zly2006.zhihu.ui.components.EinkLoadingIndicator
 
-/** 标题、作者和正文共用的轻微呼吸占位；动画只使绘制失效，不重组详情页。 */
+/** 静态占位，不创建持续重绘的呼吸动画。 */
 @Composable
 internal fun ArticleLoadingPlaceholder(modifier: Modifier = Modifier) {
-    val transition = rememberInfiniteTransition(label = "articleSkeleton")
-    val opacity = transition.animateFloat(
-        initialValue = 0.06f,
-        targetValue = 0.12f,
-        animationSpec = infiniteRepeatable(tween(900), RepeatMode.Reverse),
-        label = "articleSkeletonOpacity",
-    )
-    val color = MaterialTheme.colorScheme.onSurface
-    Spacer(
-        modifier.drawBehind {
-            drawRoundRect(
-                color = color.copy(alpha = opacity.value),
-                cornerRadius = CornerRadius(4.dp.toPx()),
-            )
-        },
-    )
+    EinkLoadingIndicator(modifier = modifier)
 }

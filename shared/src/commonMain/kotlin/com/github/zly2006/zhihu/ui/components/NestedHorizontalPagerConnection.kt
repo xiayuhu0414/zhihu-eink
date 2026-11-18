@@ -64,7 +64,7 @@ internal fun rememberNestedHorizontalPagerConnection(
                     velocityX > minimumFlingVelocity && parentState.canScrollBackward -> parentState.currentPage - 1
                     else -> parentState.currentPage
                 }.coerceIn(0, parentState.pageCount - 1)
-                parentState.animateScrollToPage(targetPage)
+                parentState.scrollToPage(targetPage)
             }
 
             fun shouldParentHandleFling(velocityX: Float): Boolean {

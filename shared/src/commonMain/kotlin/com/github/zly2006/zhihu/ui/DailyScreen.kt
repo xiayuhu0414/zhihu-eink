@@ -41,7 +41,6 @@ import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DatePicker
 import androidx.compose.material3.DatePickerDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -53,7 +52,6 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
-import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.material3.rememberDatePickerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -82,6 +80,8 @@ import com.github.zly2006.zhihu.data.DailyStory
 import com.github.zly2006.zhihu.data.fetchDailyStoryDestination
 import com.github.zly2006.zhihu.navigation.LocalNavigator
 import com.github.zly2006.zhihu.platform.isLiteVariant
+import com.github.zly2006.zhihu.ui.components.EinkLoadingIndicator
+import com.github.zly2006.zhihu.ui.components.EinkPullToRefreshBox
 import com.github.zly2006.zhihu.ui.components.pageTurnViewportWithGuide
 import com.github.zly2006.zhihu.ui.components.rememberPageTurnTarget
 import com.github.zly2006.zhihu.util.formatDailyDate
@@ -189,7 +189,7 @@ fun DailyScreen(
         if (isActive) {
             when (action) {
                 TopLevelReselectAction.Refresh -> doRefresh()
-                TopLevelReselectAction.ScrollToTop -> listState.animateScrollToItem(0)
+                TopLevelReselectAction.ScrollToTop -> listState.scrollToItem(0)
                 null -> {}
             }
         }
@@ -278,7 +278,7 @@ fun DailyScreen(
             )
         },
     ) { scaffoldPadding ->
-        PullToRefreshBox(
+        EinkPullToRefreshBox(
             isRefreshing = isRefreshing,
             onRefresh = doRefresh,
             modifier = Modifier
@@ -297,7 +297,7 @@ fun DailyScreen(
                             horizontalAlignment = Alignment.CenterHorizontally,
                             verticalArrangement = Arrangement.Center,
                         ) {
-                            CircularProgressIndicator()
+                            EinkLoadingIndicator()
                             Spacer(modifier = Modifier.height(16.dp))
                             Text(
                                 "正在加载...",
@@ -384,9 +384,7 @@ fun DailyScreen(
                                         .padding(16.dp),
                                     contentAlignment = Alignment.Center,
                                 ) {
-                                    CircularProgressIndicator(
-                                        modifier = Modifier.size(24.dp),
-                                    )
+                                    EinkLoadingIndicator(modifier = Modifier.size(24.dp))
                                 }
                             }
                         }

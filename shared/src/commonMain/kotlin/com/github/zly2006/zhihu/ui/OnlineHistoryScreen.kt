@@ -109,7 +109,7 @@ fun OnlineHistoryScreen(
         if (isActive) {
             when (action) {
                 TopLevelReselectAction.Refresh -> viewModel.refresh(paginationEnvironment)
-                TopLevelReselectAction.ScrollToTop -> listState.animateScrollToItem(0)
+                TopLevelReselectAction.ScrollToTop -> listState.scrollToItem(0)
                 null -> {}
             }
         }
