@@ -26,7 +26,7 @@ jobs:
           java-version: '21'
       - uses: android-actions/setup-android@v3
         with:
-          packages: platform-tools
+          packages: platform-tools build-tools;36.0.0
       - uses: gradle/actions/setup-gradle@v4
       - name: 验证发布脚本
         run: python3 -B -m unittest discover -s scripts -p 'test_*.py'
@@ -55,6 +55,14 @@ jobs:
           path: dist/
           if-no-files-found: error
           retention-days: 90
+      - name: 保留失败构建的诊断 APK
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: failed-release-apk
+          path: app/build/outputs/apk/lite/release/*.apk
+          if-no-files-found: ignore
+          retention-days: 7
       - name: 保存测试报告
         if: always()
         uses: actions/upload-artifact@v4

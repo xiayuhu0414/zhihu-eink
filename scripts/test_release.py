@@ -110,6 +110,14 @@ class ReleaseTests(unittest.TestCase):
         self.assertIn("--draft=false", calls[-1])
         self.assertIn("--latest=false", calls[-1])
 
+    def test_certificate_parser_handles_case_and_sdk_targeted_signers(self):
+        digest = release.CERTIFICATE_SHA256
+        for label in ["Signer #1", "Signer (minSdkVersion=33, maxSdkVersion=2147483647)"]:
+            self.assertEqual({digest}, release.signer_certificates(f"{label} certificate SHA-256 digest: {digest.upper()}\r\n"))
+        output = (f"Signer #1 certificate SHA-256 digest: {digest}\n"
+                  f"Signer #2 certificate SHA-256 digest: {'b' * 64}\n")
+        self.assertEqual({digest, 'b' * 64}, release.signer_certificates(output))
+
     def test_wrong_apk_identity_and_signing_certificate_are_rejected(self):
         # 独立覆盖真实工具输出的检查，不依赖 verify 中模拟的 check_apk。
         self.apk_check.stop()

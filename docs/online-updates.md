@@ -26,7 +26,7 @@
 推送 `main` 或手动运行 `.github/workflows/android.yml`：
 
 1. `build` 运行发布脚本测试、Android 单元测试，使用已有四项 Actions Secrets 签名构建 Release APK。
-2. 核对 APK 身份、版本和已发布固定证书；收集 APK、摘要、构建来源信息、AGPL-3.0 许可及对应提交的源码归档。混淆映射仍保留在 Actions artifact 中。
+2. 使用固定 Android build-tools 36.0.0 核对 APK 身份、版本和已发布固定证书；收集 APK、摘要、构建来源信息、AGPL-3.0 许可及对应提交的源码归档。混淆映射仍保留在 Actions artifact 中。
 3. 独立 `publish` 任务下载本次运行产物，重新核对摘要、证书、提交和运行编号；仅此任务拥有仓库 `contents: write` 权限。
 4. 使用本仓库自动生成的 `GITHUB_TOKEN` 创建测试草稿，上传全部文件，核对附件齐全后才公开为 Pre-release，不标记为稳定版 latest。失败草稿可重试；已有更新版本时拒绝发布旧构建；公开同名产物不覆盖，重跑只核对一致性。
 

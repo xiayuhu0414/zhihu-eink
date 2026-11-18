@@ -27,10 +27,15 @@ def sha256(path):
 
 def build_tools():
     sdk = Path(os.environ.get("ANDROID_HOME") or os.environ.get("ANDROID_SDK_ROOT", ""))
-    candidates = list((sdk / "build-tools").glob("*/apksigner"))
-    if not candidates:
-        raise ValueError("找不到 Android build-tools；请设置 ANDROID_HOME")
-    return max(candidates, key=lambda p: tuple(int(n) for n in re.findall(r"\d+", p.parent.name))).parent
+    tools = sdk / "build-tools" / "36.0.0"
+    if not (tools / "apksigner").is_file():
+        raise ValueError("找不到 Android build-tools 36.0.0；请设置 ANDROID_HOME 并安装固定工具版本")
+    return tools
+
+
+def signer_certificates(output):
+    pattern = r"Signer (?:#\d+|\(minSdkVersion=[^\r\n]+\)) certificate SHA-256 digest: ([0-9a-fA-F]{64})"
+    return {match[1].lower() for line in output.splitlines() if (match := re.fullmatch(pattern, line.strip()))}
 
 
 def check_apk(apk, code, tools=None):
@@ -42,9 +47,9 @@ def check_apk(apk, code, tools=None):
     if not re.search(r"(?m)^(?:minSdkVersion|sdkVersion):'27'$", badging):
         raise ValueError("APK 最低 Android 版本不匹配")
     certs = run(str(tools / "apksigner"), "verify", "--verbose", "--print-certs", str(apk))
-    digests = re.findall(r"Signer #\d+ certificate SHA-256 digest: ([0-9a-fA-F]{64})", certs)
-    if digests != [CERTIFICATE_SHA256]:
-        raise ValueError("APK 固定签名不匹配")
+    digests = signer_certificates(certs)
+    if digests != {CERTIFICATE_SHA256}:
+        raise ValueError(f"APK 固定签名不匹配（校验工具 {tools}；实际证书 {sorted(digests)}；预期 {CERTIFICATE_SHA256}）\n{certs}")
 
 
 def names(code):
