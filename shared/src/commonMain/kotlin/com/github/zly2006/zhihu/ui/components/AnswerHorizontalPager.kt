@@ -17,181 +17,62 @@
 
 package com.github.zly2006.zhihu.ui.components
 
-import androidx.compose.animation.core.Animatable
-import androidx.compose.animation.core.Spring
-import androidx.compose.animation.core.spring
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.offset
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableFloatStateOf
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.setValue
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalHapticFeedback
-import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
-import kotlinx.coroutines.launch
-import kotlin.math.abs
-import kotlin.math.roundToInt
 
-/**
- * 左右 overscroll 切换回答容器。
- *
- * 主内容水平偏移，相邻回答的预览内容由调用方通过 [previousContent] / [nextContent] 提供，并从侧边露出。
- * 使用 tanh 阻尼、震动反馈、spring 回弹。
- */
+/** 墨水屏左右切换：拖动中不移动正文，松手后一次性切换，不绘制相邻回答预览。 */
 @Composable
-fun AnswerHorizontalOverscroll(
+fun AnswerHorizontalSwipe(
     canGoPrevious: Boolean,
     canGoNext: Boolean,
     onNavigatePrevious: () -> Unit,
     onNavigateNext: () -> Unit,
-    previousContent: (@Composable () -> Unit)?,
-    nextContent: (@Composable () -> Unit)?,
     answerSwitchSensitivity: Float = DEFAULT_ANSWER_SWITCH_SENSITIVITY,
     content: @Composable () -> Unit,
 ) {
-    val density = LocalDensity.current
-    val hapticFeedback = LocalHapticFeedback.current
-    val coroutineScope = rememberCoroutineScope()
-
-    val maxOverscrollPx = with(density) { MAX_HORIZONTAL_OVERSCROLL_DP.dp.toPx() }
-    val triggerThresholdPx = with(density) {
+    val triggerThresholdPx = with(LocalDensity.current) {
         (HORIZONTAL_TRIGGER_THRESHOLD_DP / normalizedAnswerSwitchSensitivity(answerSwitchSensitivity)).dp.toPx()
     }
-
-    val overscrollOffset = remember { Animatable(0f) }
-    var hasTriggeredHaptic by remember { mutableStateOf(false) }
-    var rawDragAccumulator by remember { mutableFloatStateOf(0f) }
-    var containerWidthPx by remember { mutableFloatStateOf(0f) }
+    val hapticFeedback = LocalHapticFeedback.current
+    val navigatePrevious by rememberUpdatedState(onNavigatePrevious)
+    val navigateNext by rememberUpdatedState(onNavigateNext)
 
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .clipToBounds()
-            .onSizeChanged { containerWidthPx = it.width.toFloat() }
-            .pointerInput(canGoPrevious, canGoNext, triggerThresholdPx) {
+            .pointerInput(canGoPrevious, canGoNext, triggerThresholdPx, hapticFeedback) {
+                // 普通内存状态，不触发重组、布局或绘制；每个手势至多一次触感提示。
+                val gesture = AnswerHorizontalSwipeGesture(triggerThresholdPx)
                 detectHorizontalDragGestures(
-                    onDragStart = {
-                        rawDragAccumulator = 0f
-                        hasTriggeredHaptic = false
-                    },
+                    onDragStart = { gesture.cancel() },
+                    onDragCancel = { gesture.cancel() },
                     onDragEnd = {
-                        val currentOffset = overscrollOffset.value
-                        var didNavigate = false
-                        if (abs(currentOffset) >= triggerThresholdPx) {
-                            if (currentOffset > 0 && canGoPrevious) {
-                                onNavigatePrevious()
-                                didNavigate = true
-                            } else if (currentOffset < 0 && canGoNext) {
-                                onNavigateNext()
-                                didNavigate = true
-                            }
+                        when (gesture.finish(canGoPrevious, canGoNext)) {
+                            AnswerSwipeDirection.PREVIOUS -> navigatePrevious()
+                            AnswerSwipeDirection.NEXT -> navigateNext()
+                            null -> Unit
                         }
-                        rawDragAccumulator = 0f
-                        hasTriggeredHaptic = false
-                        if (!didNavigate) {
-                            coroutineScope.launch {
-                                overscrollOffset.animateTo(
-                                    0f,
-                                    animationSpec = spring(
-                                        dampingRatio = Spring.DampingRatioMediumBouncy,
-                                        stiffness = Spring.StiffnessMedium,
-                                    ),
-                                )
-                            }
-                        }
-                    },
-                    onDragCancel = {
-                        rawDragAccumulator = 0f
-                        hasTriggeredHaptic = false
-                        coroutineScope.launch { overscrollOffset.snapTo(0f) }
                     },
                 ) { _, dragAmount ->
-                    val canDragRight = dragAmount > 0 && canGoPrevious
-                    val canDragLeft = dragAmount < 0 && canGoNext
-                    val continuing = (overscrollOffset.value > 0 && dragAmount > 0) ||
-                        (overscrollOffset.value < 0 && dragAmount < 0)
-                    val reversing = (overscrollOffset.value > 0 && dragAmount < 0) ||
-                        (overscrollOffset.value < 0 && dragAmount > 0)
-
-                    if (canDragRight || canDragLeft || continuing || reversing) {
-                        rawDragAccumulator += dragAmount
-                        if ((rawDragAccumulator > 0 && !canGoPrevious) ||
-                            (rawDragAccumulator < 0 && !canGoNext)
-                        ) {
-                            rawDragAccumulator = 0f
-                        }
-                        val newOffset = dampedOverscrollOffset(
-                            rawDelta = rawDragAccumulator,
-                            maxOverscrollPx = maxOverscrollPx,
-                            dampingFactor = HORIZONTAL_DAMPING_FACTOR,
-                        )
-                        coroutineScope.launch { overscrollOffset.snapTo(newOffset) }
-                        if (!hasTriggeredHaptic && abs(newOffset) >= triggerThresholdPx) {
-                            hasTriggeredHaptic = true
-                            hapticFeedback.performHapticFeedback(HapticFeedbackType.LongPress)
-                        }
-                        if (hasTriggeredHaptic && abs(newOffset) < triggerThresholdPx) {
-                            hasTriggeredHaptic = false
-                        }
+                    if (gesture.dragBy(dragAmount, canGoPrevious, canGoNext)) {
+                        hapticFeedback.performHapticFeedback(HapticFeedbackType.LongPress)
                     }
                 }
             },
     ) {
-        // 左侧相邻回答（上一个），始终存活以避免预览重建闪动。
-        if (previousContent != null) {
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .offset {
-                        IntOffset(
-                            (overscrollOffset.value - containerWidthPx).roundToInt(),
-                            0,
-                        )
-                    },
-            ) {
-                previousContent()
-            }
-        }
-
-        // 右侧相邻回答（下一个），始终存活以避免预览重建闪动。
-        if (nextContent != null) {
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .offset {
-                        IntOffset(
-                            (overscrollOffset.value + containerWidthPx).roundToInt(),
-                            0,
-                        )
-                    },
-            ) {
-                nextContent()
-            }
-        }
-
-        // 主内容，跟随水平 overscroll 偏移。
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .offset { IntOffset(overscrollOffset.value.roundToInt(), 0) },
-        ) {
-            content()
-        }
+        content()
     }
 }
 
-private const val MAX_HORIZONTAL_OVERSCROLL_DP = 300f
-private const val HORIZONTAL_TRIGGER_THRESHOLD_DP = 46f
-private const val HORIZONTAL_DAMPING_FACTOR = 1.2f
+// 原来的 46dp 阻尼偏移约等于 56dp 实际拖动，保留默认切换手感。
+private const val HORIZONTAL_TRIGGER_THRESHOLD_DP = 56f
