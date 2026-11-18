@@ -26,7 +26,10 @@ import androidx.lifecycle.viewModelScope
 import com.github.zly2006.zhihu.data.Feed
 import com.github.zly2006.zhihu.data.FeedDisplayItem
 import com.github.zly2006.zhihu.data.flattenFeeds
+import com.github.zly2006.zhihu.data.navDestination
 import com.github.zly2006.zhihu.data.toDisplayItem
+import com.github.zly2006.zhihu.filter.ContentOpenEventSupport
+import com.github.zly2006.zhihu.offline.isOfflineNetworkAvailable
 import com.github.zly2006.zhihu.platform.UserMessageSink
 import com.github.zly2006.zhihu.viewmodel.FeedDisplayEnvironment
 import com.github.zly2006.zhihu.viewmodel.HomeFeedFilterResult
@@ -61,9 +64,9 @@ abstract class BaseFeedViewModel : PaginationViewModel<Feed>(typeOf<Feed>()) {
     }
 
     suspend fun pullToRefresh(environment: PaginationEnvironment) {
+        if (isLoading) return
         isPullToRefresh = true
         displayItems.clear()
-        if (isLoading) return
         errorMessage = null
         debugData.clear()
         allData.clear()
@@ -72,10 +75,12 @@ abstract class BaseFeedViewModel : PaginationViewModel<Feed>(typeOf<Feed>()) {
         try {
             fetchFeeds(environment)
         } catch (e: Exception) {
+            if (e is kotlinx.coroutines.CancellationException) throw e
             errorHandle(e)
+        } finally {
+            isLoading = false
+            isPullToRefresh = false
         }
-        isLoading = false
-        isPullToRefresh = false
     }
 
     open fun createDisplayItem(environment: FeedDisplayEnvironment, feed: Feed): FeedDisplayItem {
@@ -88,8 +93,14 @@ abstract class BaseFeedViewModel : PaginationViewModel<Feed>(typeOf<Feed>()) {
     }
 
     fun addDisplayItems(newItems: List<FeedDisplayItem>) {
+        val offline = !isOfflineNetworkAvailable()
         newItems.forEach {
-            if (displayItems.none { existing -> existing.stableKey == it.stableKey }) {
+            val identity = if (offline) it.navDestination?.let(ContentOpenEventSupport::toTrackedContentIdentity) else null
+            if (displayItems.none { existing ->
+                    existing.stableKey == it.stableKey ||
+                        (identity != null && existing.navDestination?.let(ContentOpenEventSupport::toTrackedContentIdentity) == identity)
+                }
+            ) {
                 displayItems.add(it)
             }
         }

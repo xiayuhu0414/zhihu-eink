@@ -85,7 +85,7 @@ abstract class PaginationViewModel<T : Any>(
     val debugData: MutableList<JsonElement> = mutableListOf()
     var isLoading: Boolean by mutableStateOf(false)
         protected set
-    var errorMessage: String? = null
+    var errorMessage: String? by mutableStateOf(null)
         protected set
     var allowGuestAccess = false
     protected var lastPaging: ZhihuPaging? by mutableStateOf(null)
@@ -183,12 +183,16 @@ abstract class PaginationViewModel<T : Any>(
     @OptIn(DelicateCoroutinesApi::class)
     open fun loadMore(environment: PaginationEnvironment) {
         if (isLoading || isEnd) return // 使用新的isEnd getter
+        if (errorMessage != null && !com.github.zly2006.zhihu.offline.isOfflineNetworkAvailable()) return
         isLoading = true
         currentJob = viewModelScope.launch {
             try {
                 fetchFeeds(environment)
             } catch (e: Exception) {
+                if (e is CancellationException) throw e
                 errorHandle(e)
+            } finally {
+                isLoading = false
             }
         }
     }

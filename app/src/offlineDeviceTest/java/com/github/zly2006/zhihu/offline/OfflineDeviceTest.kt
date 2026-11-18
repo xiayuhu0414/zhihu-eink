@@ -28,6 +28,123 @@ import org.junit.runner.RunWith
 
 @RunWith(AndroidJUnit4::class)
 class OfflineDeviceTest {
+    /** The host copies only cache/filter databases into the isolated package before this test. */
+    @Test fun offlineHomeReplaysExistingCacheCopy() = runBlocking {
+        check(context.packageName.endsWith(".offlinecheck"))
+        assertFalse(connected())
+        val settings = com.github.zly2006.zhihu.platform
+            .androidSettingsStore(context)
+        settings.putBoolean(OFFLINE_ENABLED, false)
+        settings.putBoolean("loginForRecommendation", false)
+        OfflineRuntime.initialize(context)
+        assertTrue(OfflineDatabase(context, "guest").use { it.unreadDetails() > 0 })
+        var requests = 0
+        com.github.zly2006.zhihu.account.accountHttpClientEngineForTesting = MockEngine {
+            requests++
+            error("离线不能访问网络")
+        }
+        val env = com.github.zly2006.zhihu.viewmodel
+            .SharedAndroidPaginationEnvironment(context, true)
+        val owner = androidx.lifecycle.ViewModelStore()
+        val model = com.github.zly2006.zhihu.viewmodel.za
+            .MixedHomeFeedViewModel()
+        try {
+            withContext(Dispatchers.Main) {
+                owner.put("home", model)
+                model.refresh(env)
+            }
+            withTimeout(15_000) {
+                while (!withContext(Dispatchers.Main) { !model.isLoading && model.displayItems.isNotEmpty() }) delay(50)
+            }
+            val cards = withContext(Dispatchers.Main) { model.displayItems.size }
+            assertEquals(0, requests)
+            println("OFFLINE_EXISTING_CACHE homeCards=$cards networkRequests=0 loading=false")
+        } finally {
+            withContext(Dispatchers.Main) { owner.clear() }
+            env.close()
+            com.github.zly2006.zhihu.account.accountHttpClientEngineForTesting = null
+        }
+    }
+
+    @Test fun offlineHomeViewModelsKeepExposedButUnopenedCardsAndFinishPagination() = runBlocking {
+        check(context.packageName.endsWith(".offlinecheck"))
+        assertFalse("此测试应在飞行模式且 Wi-Fi 关闭时执行", connected())
+        val settings = com.github.zly2006.zhihu.platform
+            .androidSettingsStore(context)
+        settings.putBoolean(OFFLINE_ENABLED, false)
+        settings.putBoolean("loginForRecommendation", false)
+        settings.putBoolean("enableContentFilter", true)
+        OfflineRuntime.initialize(context)
+        val db = OfflineDatabase(context, "guest")
+        db.clear()
+        val filterDb = com.github.zly2006.zhihu.viewmodel.filter
+            .getContentFilterDatabase(context)
+        filterDb.clearAllTables()
+        val manager = com.github.zly2006.zhihu.viewmodel.filter
+            .ContentFilterManager(filterDb.contentFilterDao())
+        repeat(25) { index ->
+            val id = 42000001 + index
+            val question = 7000001 + index
+            val body = """{"id":$id,"type":"answer","content":"实机完整正文","excerpt":"摘要","voteup_count":100,"question":{"id":$question,"type":"question","title":"实机缓存问题 $index"},"author":{"id":"fixture","name":"测试作者","url":"https://www.zhihu.com/people/fixture","user_type":"people","headline":"","avatar_url":""}}"""
+            db.save(OfflineResponse("https://www.zhihu.com/api/v4/answers/$id", "web", body, index.toLong()), emptySet(), OfflineOptions(questions = 25))
+            manager.recordContentView("answer", id.toString())
+            if (index < 2) {
+                filterDb.contentOpenEventDao().insert(
+                    com.github.zly2006.zhihu.viewmodel.filter
+                        .ContentOpenEvent(contentType = "answer", contentId = id.toString(), openFrom = "home_feed"),
+                )
+            }
+        }
+        var networkRequests = 0
+        com.github.zly2006.zhihu.account.accountHttpClientEngineForTesting = MockEngine {
+            networkRequests++
+            error("离线首页不应访问网络")
+        }
+        val env = com.github.zly2006.zhihu.viewmodel
+            .SharedAndroidPaginationEnvironment(context, true)
+        try {
+            val models = listOf(
+                com.github.zly2006.zhihu.viewmodel.za
+                    .AndroidHomeFeedViewModel(),
+                com.github.zly2006.zhihu.viewmodel.feed
+                    .HomeFeedViewModel(),
+                com.github.zly2006.zhihu.viewmodel.za
+                    .MixedHomeFeedViewModel(),
+            )
+            for (model in models) {
+                val owner = androidx.lifecycle.ViewModelStore()
+                withContext(Dispatchers.Main) {
+                    owner.put("home", model)
+                    model.refresh(env)
+                }
+                try {
+                    withTimeout(10_000) {
+                        while (!withContext(Dispatchers.Main) { !model.isLoading && model.displayItems.size == 18 }) delay(50)
+                    }
+                    withContext(Dispatchers.Main) { model.loadMore(env) }
+                    withTimeout(10_000) {
+                        while (!withContext(Dispatchers.Main) { !model.isLoading && model.isEnd && model.displayItems.size == 23 }) delay(50)
+                    }
+                    println("OFFLINE_HOME_MODEL ${model.javaClass.simpleName} cards=23 exposedRetained=true openedRemoved=2 end=true")
+                } finally {
+                    withContext(Dispatchers.Main) { owner.clear() }
+                }
+            }
+            db.clear()
+            val empty = env.fetchJson("https://api.zhihu.com/topstory/recommend", "")!!
+            assertTrue(empty["data"]!!.jsonArray.isEmpty())
+            assertTrue(empty["paging"]!!.jsonObject["is_end"].toString() == "true")
+            assertEquals(0, networkRequests)
+            println("OFFLINE_HOME_EMPTY end=true networkRequests=0")
+        } finally {
+            env.close()
+            db.clear()
+            filterDb.clearAllTables()
+            db.close()
+            com.github.zly2006.zhihu.account.accountHttpClientEngineForTesting = null
+        }
+    }
+
     private val context: Context get() = InstrumentationRegistry.getInstrumentation().targetContext
     private val answerUrl = "https://www.zhihu.com/api/v4/answers/42000001?include=content,excerpt"
     private val questionUrl = "https://www.zhihu.com/api/v4/questions/7000001"

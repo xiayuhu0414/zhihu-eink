@@ -173,7 +173,18 @@ fun offlineHomeCard(kind: String, id: String, detail: JsonObject, profile: Strin
             put("id", JsonPrimitive(id.toLong()))
             put("url", JsonPrimitive(route))
             put("author", author(detail["author"] as? JsonObject))
-            if (question != null && question["author"] is JsonObject) put("question", JsonObject(question + ("author" to author(question["author"] as? JsonObject))))
+            if (question != null) {
+                put(
+                    "question",
+                    JsonObject(
+                        question.toMutableMap().apply {
+                            put("type", JsonPrimitive("question"))
+                            if (question["url"] == null) put("url", JsonPrimitive("https://www.zhihu.com/question/${question["id"]?.jsonPrimitive?.contentOrNull.orEmpty()}"))
+                            if (question["author"] is JsonObject) put("author", author(question["author"] as? JsonObject))
+                        },
+                    ),
+                )
+            }
         }
         return buildJsonObject {
             put("id", "offline:$kind:$id")

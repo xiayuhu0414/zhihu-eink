@@ -98,6 +98,7 @@ import com.github.zly2006.zhihu.notification.HomeNotificationAction
 import com.github.zly2006.zhihu.notification.OnlineHomeNotification
 import com.github.zly2006.zhihu.notification.OnlineHomeNotificationRepository
 import com.github.zly2006.zhihu.notification.rememberNotificationSettingsStore
+import com.github.zly2006.zhihu.offline.isOfflineNetworkAvailable
 import com.github.zly2006.zhihu.platform.SettingsStore
 import com.github.zly2006.zhihu.platform.UserMessageDuration
 import com.github.zly2006.zhihu.platform.rememberAppPrivateDirectory
@@ -280,6 +281,7 @@ fun HomeScreen(
 
     var unreadCount by remember { mutableIntStateOf(0) }
     LaunchedEffect(Unit) {
+        if (!isOfflineNetworkAvailable()) return@LaunchedEffect
         try {
             unreadCount = paginationEnvironment
                 .get("$MOBILE_NOTIFICATION_MESSAGE_URL?limit=20", profile = ZhihuRequestProfile.Mobile)
@@ -303,11 +305,16 @@ fun HomeScreen(
         }
     }
 
-    val completedPageCount = viewModel.completedPageCount
-    LaunchedEffect(completedPageCount) {
+    val completedPageCount = viewModel.completedPageCount +
+        ((viewModel as? MixedHomeFeedViewModel)?.let { it.web.completedPageCount + it.android.completedPageCount } ?: 0)
+    val autoAdvanceEmptyPage = !isOfflineNetworkAvailable() ||
+        (currentRecommendationMode == RecommendationMode.WEB &&
+            settings.getString(QUALITY_FILTER_MODE_PREFERENCE_KEY, QualityFilterMode.RULES.name) == QualityFilterMode.HIDE.name)
+    LaunchedEffect(completedPageCount, viewModel.isLoading, viewModel.displayItems.size) {
         if (completedPageCount > 0 &&
-            currentRecommendationMode == RecommendationMode.WEB &&
-            settings.getString(QUALITY_FILTER_MODE_PREFERENCE_KEY, QualityFilterMode.RULES.name) == QualityFilterMode.HIDE.name &&
+            autoAdvanceEmptyPage &&
+            !viewModel.isLoading &&
+            viewModel.errorMessage == null &&
             viewModel.displayItems.isEmpty() &&
             !viewModel.isEnd
         ) {
@@ -329,8 +336,7 @@ fun HomeScreen(
                 requestLoginNavigation()
             } else if (viewModel.displayItems.isEmpty()) {
                 val cachedItems = if (autoRefreshOnStartup ||
-                    !com.github.zly2006.zhihu.offline
-                        .isOfflineNetworkAvailable()
+                    !isOfflineNetworkAvailable()
                 ) {
                     emptyList()
                 } else {
@@ -388,6 +394,7 @@ fun HomeScreen(
 
     LaunchedEffect(lifecycleOwner, scrollToTopTrigger) {
         lifecycleOwner.lifecycle.repeatOnLifecycle(Lifecycle.State.RESUMED) {
+            if (!isOfflineNetworkAvailable()) return@repeatOnLifecycle
             val loadedAnnouncements = try {
                 paginationEnvironment
                     .fetchJson(ZHIHU_PLUS_AUTHOR_PINS_URL, "")
@@ -414,10 +421,12 @@ fun HomeScreen(
             lifecycleOwner.lifecycle.repeatOnLifecycle(Lifecycle.State.RESUMED) {
                 while (true) {
                     try {
-                        onlineNotifications = onlineNotificationRepository.load(
-                            versionName = versionName,
-                            httpClient = paginationEnvironment.httpClient(),
-                        )
+                        if (isOfflineNetworkAvailable()) {
+                            onlineNotifications = onlineNotificationRepository.load(
+                                versionName = versionName,
+                                httpClient = paginationEnvironment.httpClient(),
+                            )
+                        }
                     } catch (e: CancellationException) {
                         throw e
                     } catch (e: Exception) {
@@ -650,7 +659,7 @@ fun HomeScreen(
                 }
             }
 
-            FeedPullToRefresh(viewModel, PaddingValues(top = scaffoldPadding.calculateTopPadding())) {
+            FeedPullToRefresh(viewModel, paginationEnvironment, PaddingValues(top = scaffoldPadding.calculateTopPadding())) {
                 PaginatedList(
                     items = viewModel.displayItems,
                     listState = listState,
@@ -662,7 +671,14 @@ fun HomeScreen(
                         bottom = innerPadding.calculateBottomPadding() + readingPlayerOverlayPadding,
                     ),
                     onLoadMore = { viewModel.loadMore(paginationEnvironment) },
-                    footer = ProgressIndicatorFooter,
+                    isEnd = { viewModel.isEnd },
+                    footer = { state ->
+                        if (viewModel.errorMessage != null) {
+                            Text(viewModel.errorMessage.orEmpty(), modifier = Modifier.padding(16.dp))
+                        } else {
+                            ProgressIndicatorFooter(state)
+                        }
+                    },
                     key = { item -> item.stableKey },
                     topContent = {
                         item {

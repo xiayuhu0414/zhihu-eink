@@ -333,6 +333,7 @@ open class SharedAndroidPaginationEnvironment(
             contentFilterManager = ContentFilterManager(filterDatabase.contentFilterDao()),
             contentOpenEventDao = filterDatabase.contentOpenEventDao(),
             blockedFeedRecordDao = filterDatabase.blockedFeedRecordDao(),
+            filterExposures = com.github.zly2006.zhihu.offline.isOfflineNetworkAvailable(),
         ).filter(items)
     }
 

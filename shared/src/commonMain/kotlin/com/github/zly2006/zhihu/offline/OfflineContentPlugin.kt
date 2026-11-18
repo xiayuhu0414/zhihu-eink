@@ -56,6 +56,8 @@ class OfflinePluginConfig {
     var backend: OfflineBackend? = null
 }
 
+class OfflineCacheMissException : Exception("此内容尚未缓存，请联网后打开")
+
 /** Cache transport responses before decoding, so existing page parsers remain unchanged. */
 @OptIn(InternalAPI::class)
 val OfflineContentPlugin = createClientPlugin("OfflineContent", ::OfflinePluginConfig) {
@@ -89,7 +91,10 @@ val OfflineContentPlugin = createClientPlugin("OfflineContent", ::OfflinePluginC
                 HttpResponseData(HttpStatusCode.OK, GMTDate(), headersOf(HttpHeaders.ContentType, "application/json; charset=utf-8"), HttpProtocolVersion.HTTP_1_1, ByteReadChannel(body.encodeToByteArray()), coroutineContext + Job(coroutineContext[Job])),
             )
         }
-        if (!store.connected() && !prefetch && cached != null) return@on replay()
+        if (!store.connected() && !prefetch) {
+            if (cached != null) return@on replay()
+            throw OfflineCacheMissException()
+        }
         try {
             suspend fun fetchNetwork(): HttpClientCall {
                 val call = proceed(request)

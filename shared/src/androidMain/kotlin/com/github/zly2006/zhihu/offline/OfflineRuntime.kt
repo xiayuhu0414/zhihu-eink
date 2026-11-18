@@ -189,7 +189,7 @@ object OfflineRuntime {
         override fun active() = applicationContext != null && accountId() == id
 
         override suspend fun read(url: Url, profile: String) = withContext(Dispatchers.IO) {
-            store(id).read(url, profile) ?: if (isOfflineHomeUrl(url) && store(id).unreadDetails() > 0) OfflineResponse(url.toString(), profile, "{\"data\":[]}", 0) else null
+            store(id).read(url, profile) ?: if (isOfflineHomeUrl(url) && (!connected() || store(id).unreadDetails() > 0)) OfflineResponse(url.toString(), profile, "{\"data\":[]}", 0) else null
         }
 
         override suspend fun save(response: OfflineResponse, prefetch: Boolean) = withContext(Dispatchers.IO) {

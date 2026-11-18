@@ -69,6 +69,29 @@ class OfflineContentTest {
     }
 
     @Test
+    fun offlineCacheMissNeverStartsNetworkAndDoesNotBreakNextCachedRequest() = runBlocking {
+        val backend = MemoryBackend().apply { online = false }
+        var requests = 0
+        HttpClient(
+            MockEngine {
+                requests++
+                error("离线不能访问网络")
+            },
+        ) {
+            install(OfflineContentPlugin) { this.backend = backend }
+        }.use { client ->
+            try {
+                client.get(url)
+                fail("缺失的缓存应立即结束")
+            } catch (_: OfflineCacheMissException) {
+            }
+            backend.save(OfflineResponse(url, "web", """{"id":42,"content":"可读正文"}""", 1), false)
+            assertTrue(client.get(url).bodyAsText().contains("可读正文"))
+        }
+        assertEquals(0, requests)
+    }
+
+    @Test
     fun networkFailureFallsBackButPrefetchDoesNotPretendToSucceed() = runBlocking {
         val backend = MemoryBackend()
         backend.save(OfflineResponse(url, "web", """{"id":42,"content":"旧正文"}""", 1), false)
@@ -196,5 +219,11 @@ class OfflineContentTest {
         assertNull(actual?.parameters?.get("__offline_snapshot"))
         assertNull(actual?.parameters?.get("__offline_offset"))
         assertEquals("content", actual?.parameters?.get("include"))
+    }
+
+    @Test fun nestedQuestionWithoutUrlStillUsesExistingWebParser() {
+        val detail = Json.parseToJsonElement("""{"id":42,"content":"正文","question":{"id":7,"title":"问题标题"}}""") as kotlinx.serialization.json.JsonObject
+        val feed = ZhihuJson.decodeJson<Feed>(offlineHomeCard("answer", "42", detail, "web"))
+        assertEquals("https://www.zhihu.com/question/7", ((feed as com.github.zly2006.zhihu.data.CommonFeed).target as Feed.AnswerTarget).question.url)
     }
 }

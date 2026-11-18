@@ -40,6 +40,7 @@ class ForegroundReadFilterPipeline(
     private val contentFilterManager: ContentFilterManager,
     private val contentOpenEventDao: ContentOpenEventDao,
     private val blockedFeedRecordDao: BlockedFeedRecordDao,
+    private val filterExposures: Boolean = true,
 ) {
     suspend fun filter(items: List<FeedDisplayItem>): List<FeedDisplayItem> {
         if (settings.reverseBlock || !settings.enableContentFilter) {
@@ -47,9 +48,14 @@ class ForegroundReadFilterPipeline(
         }
 
         val itemIdentityPairs = items.map { item -> item to item.resolveContentIdentity() }
-        val viewedContentIds = contentFilterManager.getAlreadyViewedContentIds(
-            itemIdentityPairs.map { (_, identity) -> identity.type to identity.id },
-        )
+        // Offline inventory includes cards seen in the online feed but not opened yet.
+        val viewedContentIds = if (filterExposures) {
+            contentFilterManager.getAlreadyViewedContentIds(
+                itemIdentityPairs.map { (_, identity) -> identity.type to identity.id },
+            )
+        } else {
+            emptySet()
+        }
         val openedContentKeys = contentOpenEventDao
             .getOpenedContentKeysByKeys(
                 itemIdentityPairs.map { (_, identity) -> "${identity.type}:${identity.id}" },
@@ -69,7 +75,7 @@ class ForegroundReadFilterPipeline(
 
             if (isFollowing || (!isViewed && !isLowQualityAndroidFeed)) {
                 keptItems.add(item)
-                contentFilterManager.recordContentView(identity.type, identity.id)
+                if (filterExposures) contentFilterManager.recordContentView(identity.type, identity.id)
             } else {
                 blockedItems.add(
                     item.toFilterableContent(identity, DataHolder.DummyContent) to "已读过且未关注作者",

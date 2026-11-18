@@ -111,6 +111,7 @@ class AndroidHomeFeedViewModel :
                 }
 
                 acceptOfflinePaging(jojo)
+                completedPageCount++
             }
         } catch (e: Exception) {
             if (e !is CancellationException) {
